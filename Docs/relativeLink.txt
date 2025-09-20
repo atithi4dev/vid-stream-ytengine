@@ -1,4 +1,0 @@
-BASIC DATABASE ARCHITECTURE
-
-https://app.eraser.io/workspace/exwD5uJZOu4C3BI1LR4F?origin=share 
-(The architecture present here is part of v0 to lay the foundation, it is not at all to the point actual structure used in codeBase )
