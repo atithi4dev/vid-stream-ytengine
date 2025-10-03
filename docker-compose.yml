@@ -1,0 +1,71 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: yt-backend
+    restart: always
+    env_file:
+      - ./backend/.env
+    ports:
+      - "5000:8001"
+    depends_on:
+      - redis
+    volumes:
+      - ./backend:/usr/src/app
+      - /usr/src/app/node_modules
+    command: npm run dev
+
+  redis:
+    image: redis:7
+    container_name: yt-redis
+    restart: always
+    ports:
+      - "6379:6379"
+
+  worker-transcode:
+    build:
+      context: ./backend
+    container_name: worker-transcode
+    restart: always
+    env_file:
+      - ./backend/.env
+    depends_on:
+      - redis
+    volumes:
+      - ./backend:/usr/src/app
+      - /usr/src/app/node_modules
+      - ./backend/public/temp:/usr/src/app/public/temp
+      - ./backend/public/output:/usr/src/app/public/output
+    command: node src/jobs/Worker/videoProcessor.worker.js
+
+  worker-hls:
+    build:
+      context: ./backend
+    container_name: worker-hls
+    restart: always
+    env_file:
+      - ./backend/.env
+    depends_on:
+      - redis
+    volumes:
+      - ./backend:/usr/src/app
+      - /usr/src/app/node_modules
+      - ./backend/public/output:/usr/src/app/public/output
+    command: node src/jobs/Worker/VideoProcessingPhase2/videoProcessor.worker.js
+
+    frontend:
+      build:
+        context: ./frontend
+      container_name: yt-frontend
+      restart: always
+      ports:
+        - "5173:5173"  # map container port to host
+      volumes:
+        - ./frontend:/app
+        - /app/node_modules
+      command: npm run dev -- --host 0.0.0.0
+
+volumes:
+  mongo_data:

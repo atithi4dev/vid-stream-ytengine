@@ -5,6 +5,9 @@ import { ApiError } from "../../../utils/ApiError.js";
 import logger from "../../../logger/logger.js";
 import { publishProgress } from "../../../utils/videoProgress.js";
 
+ffmpeg.setFfmpegPath("/usr/bin/ffmpeg");
+ffmpeg.setFfprobePath("/usr/bin/ffprobe");
+
 const VIDEO_EXTENSIONS = [
   ".mp4",
   ".mov",
@@ -62,7 +65,7 @@ const generateHLS = (inputFilePath, outputDir) => {
       })
       .on("error", (err) => {
         logger.error(
-          `❌ HLS error for ${path.basename(inputFilePath)}: ${err.message}`
+          `HLS error for ${path.basename(inputFilePath)}: ${err.message}`
         );
         reject(
           new ApiError(

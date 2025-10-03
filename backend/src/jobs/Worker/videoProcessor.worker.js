@@ -22,6 +22,8 @@ logger.info("MongoDB Connected");
 
 const connection = new IORedis({
   maxRetriesPerRequest: null,
+  host: process.env.REDIS_HOST || "yt-redis",
+  port: 6379,
 });
 
 const worker = new Worker(
@@ -38,6 +40,9 @@ const worker = new Worker(
       "../../../",
       baseOutputPath
     );
+    
+    logger.info(`Resolved input path for videoId ${videoId}: ${resolvedInputPath}`);
+    logger.info(`Resolved output path for videoId ${videoId}: ${resolvedOutputPath}`);
 
     logger.info(
       `Job Received: input = ${inputPath}, output=${baseOutputPath}, videoId=${videoId}`

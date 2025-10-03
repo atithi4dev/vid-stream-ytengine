@@ -23,6 +23,8 @@ logger.info("MongoDB Connected");
 
 const connection = new IORedis({
   maxRetriesPerRequest: null,
+  host: process.env.REDIS_HOST || "yt-redis",
+  port: 6379,
 });
 
 const RESOLUTIONS = ["360p", "720p", "1080p"];

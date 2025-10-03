@@ -5,6 +5,9 @@ import ffmpeg from "fluent-ffmpeg";
 import { ApiError } from "../../utils/ApiError.js";
 import { publishProgress } from "../../utils/videoProgress.js";
 
+ffmpeg.setFfmpegPath("/usr/bin/ffmpeg");
+ffmpeg.setFfprobePath("/usr/bin/ffprobe");
+
 function getVideoDuration(inputPath) {
   return new Promise((resolve, reject) => {
     ffmpeg.ffprobe(inputPath, (err, metadata) => {

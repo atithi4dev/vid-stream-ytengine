@@ -1,6 +1,9 @@
 import IORedis from "ioredis";
 import Video from '../models/video.models.js'
-const pub = new IORedis();
+const pub = new IORedis({
+  host: process.env.REDIS_HOST || "yt-redis",
+  port: 6379,
+});
 
 export const publishProgress = async (videoId, stageKey) => {
   const stages = {
@@ -11,9 +14,9 @@ export const publishProgress = async (videoId, stageKey) => {
     transcoding_done: { percent: 50, message: "Transcoding complete." },
 
     hls_start: { percent: 60, message: "Generating video formats..." },
-    hls_done: { percent: 100, message: "Video ready to watch ✅" },
+    hls_done: { percent: 100, message: "Video ready to watch" },
 
-    error: { percent: 100, message: "Something went wrong ❌" },
+    error: { percent: 100, message: "Something went wrong" },
   };
 
   const stage = stages[stageKey];
@@ -32,7 +35,7 @@ export const publishProgress = async (videoId, stageKey) => {
       time: Date.now(),
     })
   );
-   try {
+  try {
     if (stageKey === "transcoding_start") {
       await Video.findByIdAndUpdate(videoId, { encodingStatus: "processing" });
     }
@@ -41,6 +44,6 @@ export const publishProgress = async (videoId, stageKey) => {
       await Video.findByIdAndUpdate(videoId, { encodingStatus: "ready" });
     }
   } catch (err) {
-    console.warn(`⚠️ Failed to update encodingStatus for ${videoId}: ${err.message}`);
+    console.warn(`Failed to update encodingStatus for ${videoId}: ${err.message}`);
   }
 };
