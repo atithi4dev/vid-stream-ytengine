@@ -4,16 +4,16 @@ import Video from "../models/video.models.js";
 import Subscription from "../models/subscription.models.js";
 import Like from "../models/like.models.js";
 import User from "../models/user.models.js";
-import { ApiError } from "../utils/ApiError.js";
-import { ApiResponse } from "../utils/ApiResponse.js";
-import { asyncHandler } from "../utils/asyncHandler.js";
+import { ApiError } from "../utils/api-utils/ApiError.js";
+import { ApiResponse } from "../utils/api-utils/ApiResponse.js";
+import { asyncHandler } from "../utils/api-utils/asyncHandler.js";
 import { videoQueue } from "../jobs/Queue/videoProcessor.queue.js";
 import {
   uploadVideoOnCloudinary,
   deleteVideoFromCloudinary,
   uploadOnCloudinary,
   deleteFromCloudinary,
-} from "../utils/Cloudinary.js";
+} from "../utils/assets-utils/Cloudinary.js";
 import fs from "fs";
 
 const getAllOwnVideos = asyncHandler(async (req, res) => {

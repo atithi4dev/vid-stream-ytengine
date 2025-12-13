@@ -8,9 +8,9 @@ import fs from "fs/promises";
 import { generateHLSChunks } from "./transcodeVideo.js";
 import Video from "../../../models/video.models.js";
 import logger from "../../../logger/logger.js";
-import { ApiError } from "../../../utils/ApiError.js";
-import { publishProgress } from "../../../utils/videoProgress.js";
-import { updateS3VideoHls } from "../../../utils/S3Upload.js";
+import { ApiError } from "../../../utils/api-utils/ApiError.js";
+import { publishProgress } from "../../../utils/progress-utils/videoProgress.js";
+import { updateS3VideoHls } from "../../../utils/assets-utils/S3Upload.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

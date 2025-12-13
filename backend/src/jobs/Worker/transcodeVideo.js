@@ -2,8 +2,8 @@ import fs from "fs";
 import path from "path";
 import { performance } from "perf_hooks";
 import ffmpeg from "fluent-ffmpeg";
-import { ApiError } from "../../utils/ApiError.js";
-import { publishProgress } from "../../utils/videoProgress.js";
+import { ApiError } from "../../utils/api-utils/ApiError.js";
+import { publishProgress } from "../../utils/progress-utils/videoProgress.js";
 
 ffmpeg.setFfmpegPath("/usr/bin/ffmpeg");
 ffmpeg.setFfprobePath("/usr/bin/ffprobe");

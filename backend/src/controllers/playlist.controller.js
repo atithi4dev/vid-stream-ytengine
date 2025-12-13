@@ -1,9 +1,9 @@
 import { isValidObjectId } from "mongoose";
 import Playlist from "../models/playlist.models.js";
 import Video from "../models/video.models.js";
-import { ApiError } from "../utils/ApiError.js";
-import { ApiResponse } from "../utils/ApiResponse.js";
-import { asyncHandler } from "../utils/asyncHandler.js";
+import { ApiError } from "../utils/api-utils/ApiError.js";
+import { ApiResponse } from "../utils/api-utils/ApiResponse.js";
+import { asyncHandler } from "../utils/api-utils/asyncHandler.js";
 
 const getPopulatedPlaylistById = (id) => {
   return Playlist.findById(id)

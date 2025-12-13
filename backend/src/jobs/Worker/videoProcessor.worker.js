@@ -7,7 +7,7 @@ import { fileURLToPath } from "url";
 import { unlink, access } from "fs/promises";
 import { constants } from "fs";
 import dotenv from "dotenv";
-import { ApiError } from "../../utils/ApiError.js";
+import { ApiError } from "../../utils/api-utils/ApiError.js";
 import logger from "../../logger/logger.js";
 import { videoHlsformation } from "../Queue/videoHls.queue.js";
 

@@ -1,5 +1,5 @@
 import IORedis from "ioredis";
-import Video from '../models/video.models.js'
+import Video from '../../models/video.models.js'
 const pub = new IORedis({
   host: process.env.REDIS_HOST || "yt-redis",
   port: 6379,

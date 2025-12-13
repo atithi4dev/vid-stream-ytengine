@@ -1,20 +1,15 @@
-version: "3.9"
-
 services:
   backend:
-    build:
-      context: ./backend
+    build: ./backend
     container_name: yt-backend
     restart: always
-    env_file:
-      - ./backend/.env
+    env_file: ./backend/.env
     ports:
-      - "5000:8001"
+      - "8001:8001"
     depends_on:
       - redis
-    volumes:
-      - ./backend:/usr/src/app
-      - /usr/src/app/node_modules
+    networks:
+      - ytengine
     command: npm run dev
 
   redis:
@@ -22,50 +17,44 @@ services:
     container_name: yt-redis
     restart: always
     ports:
-      - "6379:6379"
+      - "6380:6379"
+    networks:
+      - ytengine
 
   worker-transcode:
-    build:
-      context: ./backend
+    build: ./backend
     container_name: worker-transcode
     restart: always
-    env_file:
-      - ./backend/.env
+    env_file: ./backend/.env
     depends_on:
       - redis
-    volumes:
-      - ./backend:/usr/src/app
-      - /usr/src/app/node_modules
-      - ./backend/public/temp:/usr/src/app/public/temp
-      - ./backend/public/output:/usr/src/app/public/output
+    networks:
+      - ytengine
     command: node src/jobs/Worker/videoProcessor.worker.js
 
   worker-hls:
-    build:
-      context: ./backend
+    build: ./backend
     container_name: worker-hls
     restart: always
-    env_file:
-      - ./backend/.env
+    env_file: ./backend/.env
     depends_on:
       - redis
-    volumes:
-      - ./backend:/usr/src/app
-      - /usr/src/app/node_modules
-      - ./backend/public/output:/usr/src/app/public/output
+    networks:
+      - ytengine
     command: node src/jobs/Worker/VideoProcessingPhase2/videoProcessor.worker.js
 
-    frontend:
-      build:
-        context: ./frontend
-      container_name: yt-frontend
-      restart: always
-      ports:
-        - "5173:5173"  # map container port to host
-      volumes:
-        - ./frontend:/app
-        - /app/node_modules
-      command: npm run dev -- --host 0.0.0.0
+  ws:
+    build: ./backend
+    container_name: yt-ws
+    restart: always
+    env_file: ./backend/.env
+    ports:
+      - "4000:8080"
+    depends_on:
+      - redis
+    networks:
+      - ytengine
+    command: node src/sockets/ws.js
 
-volumes:
-  mongo_data:
+networks:
+  ytengine:

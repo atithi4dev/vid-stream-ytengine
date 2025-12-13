@@ -1,0 +1,2 @@
+add redis + async db update and ws for likes updates to frontend  === (LIKE COUNT IN getVideoById, getChannelStats, getUserTweets, getVideoComments)
+add ws for comments

@@ -1,9 +1,9 @@
 import fs from "fs";
 import path from "path";
 import ffmpeg from "fluent-ffmpeg";
-import { ApiError } from "../../../utils/ApiError.js";
+import { ApiError } from "../../../utils/api-utils/ApiError.js";
 import logger from "../../../logger/logger.js";
-import { publishProgress } from "../../../utils/videoProgress.js";
+import { publishProgress } from "../../../utils/progress-utils/videoProgress.js";
 
 ffmpeg.setFfmpegPath("/usr/bin/ffmpeg");
 ffmpeg.setFfprobePath("/usr/bin/ffprobe");
