@@ -1,177 +1,116 @@
-# 🎬 YouTube Backend Clone (yt-backend)
+# Video Streaming Platform - Backend Module
 
-A scalable, modular backend inspired by YouTube. Built with **Node.js**, **Express**, and **MongoDB**, this project powers user-generated content platforms with support for videos, likes, comments, subscriptions, and more.
-
-> ⚙️ Version: **V-0** (Core routes implemented and functional)
+**YT-ENGINE** is a backend-driven video streaming platform that supports uploading, transcoding, and serving videos in multiple resolutions using HLS. It is built with a modular architecture to handle channels, subscriptions, playlists, and user engagement efficiently.
 
 ---
 
-## 🚀 Tech Stack
+## Guides
 
-![Node.js](https://img.shields.io/badge/Node.js-18.x-green?logo=node.js&logoColor=white)
-![Express.js](https://img.shields.io/badge/Express.js-Backend-black?logo=express&logoColor=white)
-![MongoDB](https://img.shields.io/badge/MongoDB-Database-4DB33D?logo=mongodb&logoColor=white)
-![Mongoose](https://img.shields.io/badge/Mongoose-ODM-red?logo=mongoose&logoColor=white)
-![Cloudinary](https://img.shields.io/badge/Cloudinary-Media_Storage-blue?logo=cloudinary&logoColor=white)
-![JWT](https://img.shields.io/badge/JWT-Auth-orange?logo=jsonwebtokens&logoColor=white)
-![Cookie](https://img.shields.io/badge/Cookie-based%20Auth-lightgrey)
-![Multer](https://img.shields.io/badge/Multer-File_Upload-yellow)
-![Winston](https://img.shields.io/badge/Winston-Logger-purple)
-![dotenv](https://img.shields.io/badge/dotenv-Env_Config-brightgreen)
-![CORS](https://img.shields.io/badge/CORS-Cross_Origin-blue)
+~ [**Documentation**](https://yt.veren.site/docs)
 
-- **Node.js** + **Express.js** (API and routing)
-- **MongoDB** + **Mongoose** (Database and schema modeling)
-- **Cloudinary** (Media storage)
-- **JWT** + **Cookie-based Auth**
-- **Multer** (Media uploads)
-- **Winston** (Logging)
-- **dotenv**, **CORS**, **morgan**, and more.
+~ [**API Walkthrough**](https://yt.veren.site/api-walkthrough)
+
+~ [**Quick Setup**](#project-setup)
+
+~ [**By me a coffee**](https://main.veren.site/coffee)
 
 ---
 
-## ✅ Current Features (V-0)
+## Project Setup
 
-### 👤 User Module
-- Register/Login with avatar and coverImage upload.
-- JWT-based secure session with refresh token support.
-- Update account details, password, and images.
-- Get current user profile and any user's channel profile.
-- Fetch watch history and user-specific uploaded videos.
+1. Clone the repository:
 
----
+```bash
+git clone <repository-url>
+cd yt-engine
+```
 
-### 🎬 Video Module
-- Upload videos and thumbnails via `multipart/form-data`.
-- Fetch, update (metadata or thumbnail), and delete videos.
-- Toggle publish status.
-- Get all published videos.
+2. Ensure all required configuration files are added (database credentials, S3 settings, etc.).
 
----
+3. Start the services using Docker Compose:
 
-### 💬 Comment Module
-- Add, update, and delete comments on videos.
-- Fetch comments for a specific video.
-- Like or unlike a comment.
+```bash
+docker compose up --build
+```
+
+Once running, you can explore API routes and features through the API documentation.
 
 ---
 
-### ❤️ Like System
-- Like/unlike:
-  - Videos: `/toggle/v/:videoId`
-  - Comments: `/toggle/c/:commentId`
-  - Tweets: `/toggle/t/:tweetId`
-- Get list of liked videos.
+## Architecture Overview
+
+YT-ENGINE is designed as a **service-oriented backend** for video streaming:
+
+* **API Gateway** – Central entry point for all requests (video, channel, user, subscription).
+* **Worker Services** – Handle video transcoding, chunking, and background tasks via BullMQ.
+* **Artifact Storage** – Videos are stored in S3 and served as HLS streams (`.m3u8` + `.ts` chunks).
+* **Database Layer** – Tracks users, videos, playlists, subscriptions, and watch history.
+* **Asynchronous Event Flow** – Ensures reliable processing of uploads, encodings, and notifications.
 
 ---
 
-### 📜 Tweet Module
-- Post a tweet, edit it, or delete it.
-- Fetch tweets by user.
+## Features
+
+### User Module
+
+* Register/login with profile images.
+* Update account details and password.
+* Fetch user profile, watch history, and uploaded videos.
+
+### Video Module
+
+* Upload videos and thumbnails.
+* Transcode videos into multiple resolutions using ffmpeg.
+* Generate HLS streams (`.m3u8` playlists + `.ts` chunks).
+* Fetch, update, or delete videos.
+
+### Playlist & Subscription
+
+* Create, update, and delete playlists.
+* Add/remove videos from playlists.
+* Subscribe/unsubscribe to channels.
+
+### Engagement
+
+* Comment on videos with CRUD operations.
+* Like/unlike videos and comments.
+* Fetch channel stats (views, subscribers).
+
+### Health Check
+
+* API status available at `/api/healthcheck`.
 
 ---
 
-### 📺 Playlist Module
-- Create, update, and delete playlists.
-- Add or remove videos to/from a playlist.
-- Fetch playlists by user or by ID.
+## Roadmap / Upcoming Features
+
+* Adaptive bitrate streaming via HLS (handled by HLS.js).
+* Private video access control and permissions.
+* Background encoding for additional resolutions.
+* Analytics and engagement metrics (views, watch time).
+* WebSocket support for live comments and notifications.
 
 ---
 
-### 📊 Channel Stats Module
-- View channel-level stats (subscribers, views).
-- Get all videos under a specific channel.
+## Contributions
+
+YT-ENGINE is an experimental backend project. Contributions and feedback are welcome:
+
+* Open an issue for bugs or feature requests.
+* Submit pull requests for improvements.
+* Focus on clarity and intent; perfection is not required.
 
 ---
 
-### 🧠 Subscription System
-- Subscribe or unsubscribe from any user.
-- Fetch all subscribed channels.
-- Fetch all subscribers of a channel.
+## Support
 
----
+* Open an issue on the [GitHub repository](https://github.com/atithi4dev/vid-stream-ytengine/issues).
+* Reach out via [email](atithisingh.dev@gmail.com) or discussion forums for help.
 
-### 🧪 Health Check
-- Basic API status check at `/api/healthcheck`.
 
----
-
-## 🔮 Upcoming Features (V-1 and Beyond)
-
-### 🎥 Video Streaming
-- Support **byte-range requests** (seeking + partial streaming).
-- Add access control for **private videos**.
-
-### 🧠 AI/ML Integration
-- Whisper API for **auto-captioning / speech-to-text**.
-- NSFW detection before publishing.
-- Smart recommendation engine (trending + personalized).
-
-### 🛡️ Advanced Auth
-- OAuth2 login (Google, GitHub).
-- 2FA (Two-Factor Authentication) via email or OTP.
-
-### 🧩 WebSocket Features
-- Live comments.
-- Push notifications (likes, comments, new uploads).
-
-### 📈 Analytics & Statistics
-- Track user engagement: likes, views, watch time.
-- Support for chart rendering (via API).
-
-### 🌐 REST + GraphQL Hybrid
-- Add optional **GraphQL** API layer for advanced clients.
-
-### 🗃️ Performance & Caching
-- Redis-based caching for popular videos and channels.
-- Queue workers (BullMQ) for background processing (uploads, encoding).
-
-### 📁 Upload Optimization
-- **Chunked uploads** with resumable support.
-- Video **transcoding pipeline** (480p, 720p, 1080p).
-
-### 📂 Smart Playlists
-- Add folders or sub-playlists for better user organization.
-
-### 🐳 Deployment & DevOps
-- Docker + Docker Compose setup.
-- CI/CD pipelines using GitHub Actions.
-- k8s manifests for scalable cloud deployment.
-
----
-
-## 🧩 Roadmap Overview
-
-| Phase  | Features                                                                 | Status     |
-|--------|--------------------------------------------------------------------------|------------|
-| V-0    | Auth, videos, comments, playlists, likes, tweets, subscriptions          | ✅ Done     |
-| V-1    | OAuth, video streaming, WebSockets, analytics                            | 🔄 In Dev   |
-| V-2    | AI tools (captioning, moderation), GraphQL, push notifications           | 🧠 Planned  |
-| V-3    | DevOps: CI/CD, Docker, Monitoring, Rate limiting, Redis caching          | 🔜 Planned  |
-
----
-
-## 📂 Folder Structure (Coming Soon)
-
-_A clean architecture layout using modular structure for scalability._
-
----
-
-## 🧑‍💻 Author
-
-- **Atithi Singh**
-- GitHub: [@atithisingh](https://github.com/atithi4dev)
-- Portfolio: _Coming Soon_
-
----
-
-## 📜 License
-
-This project is licensed under the **MIT License**.
-
----
-
-> This is just the beginning.
-
->Feature-rich, AI-enhanced, production-grade tooling is being added soon. Stay tuned for V-1.0 releases.
-
+</br>
+</br>
+</br>
+</br>
+</br>
+</br>
