@@ -1,10 +1,6 @@
 FROM node:20-slim
 
-RUN apt-get update && \
-    apt-get install -y ffmpeg && \
-    rm -rf /var/lib/apt/lists/*
-
-WORKDIR /usr/src/app
+WORKDIR /usr
 
 COPY package*.json ./
 

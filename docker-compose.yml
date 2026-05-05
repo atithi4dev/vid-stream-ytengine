@@ -4,6 +4,8 @@ services:
     container_name: yt-backend
     restart: always
     env_file: ./backend/.env
+    volumes:
+      - publicVideo:/usr/public
     ports:
       - "8001:8001"
     depends_on:
@@ -22,26 +24,42 @@ services:
       - ytengine
 
   worker-transcode:
-    build: ./backend
-    container_name: worker-transcode
+    build: ./workers/worker-transcode
     restart: always
     env_file: ./backend/.env
+    volumes:
+      - publicVideo:/usr/public
     depends_on:
       - redis
     networks:
       - ytengine
-    command: node src/jobs/Worker/videoProcessor.worker.js
+    command: node src/init.js
+    deploy:
+      replicas: 5
+      resources:
+        limits: 
+          cpus: '0.5'
+        reservations:
+          cpus: '0.25'
 
   worker-hls:
-    build: ./backend
-    container_name: worker-hls
+    build: ./workers/worker-hls
     restart: always
     env_file: ./backend/.env
+    volumes:
+      - publicVideo:/usr/public
     depends_on:
       - redis
     networks:
       - ytengine
-    command: node src/jobs/Worker/VideoProcessingPhase2/videoProcessor.worker.js
+    command: node src/init.js
+    deploy:
+      replicas: 5
+      resources:
+        limits: 
+          cpus: '0.5'
+        reservations:
+          cpus: '0.25'
 
   ws:
     build: ./backend
@@ -55,6 +73,9 @@ services:
     networks:
       - ytengine
     command: node src/sockets/ws.js
+
+volumes:
+  publicVideo:
 
 networks:
   ytengine:

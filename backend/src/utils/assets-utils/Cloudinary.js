@@ -3,13 +3,14 @@ import fs from "fs";
 import dotenv from "dotenv";
 import logger from "../../logger/logger.js";
 import path from "path";
+import { env } from "../../config/env.js";
 dotenv.config();
 
 // Configuration Of Cloudinary
 cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
+  cloud_name: env.CLOUDINARY_CLOUD_NAME,
+  api_key: env.CLOUDINARY_API_KEY,
+  api_secret: env.CLOUDINARY_API_SECRET,
 });
 
 const uploadOnCloudinary = async (localFilePath) => {
@@ -68,8 +69,6 @@ const walkDir = (dir, fileList = []) => {
 
 const uploadFolderToCloudinary = async (localFolderPath, cloudFolderName) => {
   try {
-    console.log("📂 Uploading folder recursively...");
-
     const allFiles = walkDir(localFolderPath);
     const uploadResults = [];
 
@@ -84,8 +83,6 @@ const uploadFolderToCloudinary = async (localFolderPath, cloudFolderName) => {
 
       const cloudinaryPath = path.join(cloudFolderName, path.dirname(relativePath)).replace(/\\/g, "/");
 
-      console.log(`⬆️ Uploading: ${fullPath} → Cloud: ${cloudinaryPath}`);
-
       const result = await cloudinary.uploader.upload(fullPath, {
         folder: cloudinaryPath,
         resource_type: resourceType,
@@ -97,7 +94,7 @@ const uploadFolderToCloudinary = async (localFolderPath, cloudFolderName) => {
 
     return uploadResults;
   } catch (error) {
-    logger.error("❌ Error uploading deep folder to Cloudinary:", error);
+    logger.error("Error uploading deep folder to Cloudinary:", error);
     console.error(error);
     return null;
   }

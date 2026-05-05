@@ -232,7 +232,6 @@ const publishAVideo = asyncHandler(async (req, res) => {
   const outputPath = "./public/output";
   let videoFile = null;
   let thumbnail = null;
-
   try {
     if (videoLocalPath) {
       videoFile = await uploadVideoOnCloudinary(videoLocalPath);

@@ -1,22 +1,31 @@
 import mongoose from "mongoose";
-import { DB_NAME } from "../constants.js";
 import logger from "../logger/logger.js";
+import { env } from "../config/env.js";
 
 export async function connectDB() {
-  const connect = async () => {
-    try {
-      await mongoose.connect(process.env.MONGO_URI, {
-        serverSelectionTimeoutMS: 5000,
-      });
-      console.log("MongoDB connected");
-    } catch (err) {
-      console.error("MongoDB connection failed, retrying in 5s");
-      setTimeout(connect, 5000);
+    const MAX_RETRIES = 5;
+    let retry_count = 0;
+    let timer = 1;
+    
+    const connect = async () =>{
+      try {
+        await mongoose.connect(env.MONGO_URI+"vidtube", {
+          serverSelectionTimeoutMS: 5000,
+        });
+        logger.info("MongoDb connected");
+      } catch (error) {
+        if(retry_count < MAX_RETRIES){
+          setTimeout(connect, timer*1000);
+          logger.warn(`MongoDB connection retry ${retry_count+1} in ${timer}s`)
+          retry_count++;
+          timer++;
+        }else{
+          logger.error("Max retries ended , Unable to connect to MongoDB instance.")
+        }
+      }
     }
-  };
 
-  connect();
+    connect();
 }
-
 
 export default connectDB;

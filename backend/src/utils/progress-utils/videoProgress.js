@@ -1,8 +1,10 @@
 import IORedis from "ioredis";
 import Video from '../../models/video.models.js'
+import { env } from "../../config/env.js";
+import { REDIS_CONFIG } from "../../config/cache.js";
 const pub = new IORedis({
-  host: process.env.REDIS_HOST || "yt-redis",
-  port: 6379,
+  host: REDIS_CONFIG.HOST,
+  port: REDIS_CONFIG.PORT,
 });
 
 export const publishProgress = async (videoId, stageKey) => {

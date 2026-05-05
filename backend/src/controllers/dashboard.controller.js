@@ -14,9 +14,8 @@ const getChannelStats = asyncHandler(async (req, res) => {
   }
 
   if (!isValidObjectId(channelId)) {
-    throw new ApiError(400, "Channel ID must be a valid ObjectId");
+    channelId = new mongoose.Types.ObjectId(channelId)
   }
-
   const totalVideos = await Video.countDocuments({
     owner: new mongoose.Types.ObjectId(channelId),
     isPublished: true,

@@ -10,6 +10,8 @@ import {
 import { ApiResponse } from "../utils/api-utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
 import path from 'path';
+import { env } from "../config/env.js";
+import { JWT_CONFIG } from "../config/jwt.js";
 
 const generateAccessAndRefreshToken = async (userId) => {
   if (!userId) {
@@ -110,7 +112,6 @@ const registerUser = asyncHandler(async (req, res) => {
     if (!createdUser) {
       throw new ApiError(500, "User creation failed");
     }
-    console.log("User Created Successfully:", createdUser);
     return res
       .status(201)
       .json(new ApiResponse(201, createdUser, "User registered successfully"));
@@ -165,15 +166,10 @@ const loginUser = asyncHandler(async (req, res) => {
     throw new ApiError(500, "User login failed");
   }
 
-  const options = {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-  };
-
   return res
     .status(200)
-    .cookie("accessToken", accessToken, options)
-    .cookie("refreshToken", refreshToken, options)
+    .cookie("accessToken", accessToken, JWT_CONFIG.COOKIE_OPTIONS)
+    .cookie("refreshToken", refreshToken, JWT_CONFIG.COOKIE_OPTIONS)
     .json(
       new ApiResponse(200, {
         user: loggedInUser,
@@ -196,7 +192,7 @@ const logoutUser = asyncHandler(async (req, res) => {
 
   const options = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: env.NODE_ENV === "production",
   };
   return res
     .status(200)
@@ -214,7 +210,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
   try {
     const decodedToken = jwt.verify(
       incomingRefreshToken,
-      process.env.REFRESH_TOKEN_SECRET
+      env.REFRESH_TOKEN_SECRET
     );
     const user = await User.findById(decodedToken?._id);
     if (!user) {
@@ -224,18 +220,13 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
       throw new ApiError(401, "Invalid refresh token");
     }
 
-    const options = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-    };
-
     const { accessToken, refreshToken: newRefreshToken } =
       await generateAccessAndRefreshToken(user._id);
 
     res
       .status(200)
-      .cookie("accessToken", accessToken, options)
-      .cookie("refreshToken", newRefreshToken, options)
+      .cookie("accessToken", accessToken, JWT_CONFIG.COOKIE_OPTIONS)
+      .cookie("refreshToken", newRefreshToken, JWT_CONFIG.COOKIE_OPTIONS)
       .json(
         new ApiResponse(
           200,
@@ -267,15 +258,10 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
 
   await user.save({ validateBeforeSave: false });
 
-  const options = {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-  };
-
   return res
     .status(200)
-    .cookie("accessToken", accessToken, options)
-    .cookie("refreshToken", refreshToken, options)
+    .cookie("accessToken", accessToken, JWT_CONFIG.COOKIE_OPTIONS)
+    .cookie("refreshToken", refreshToken, JWT_CONFIG.COOKIE_OPTIONS)
     .json(
       new ApiResponse(
         200,
@@ -342,7 +328,6 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     throw new ApiError(404, "User not found");
   }
   const MAINPATH = path.join(process.cwd(), "public/HelloTest")
-  // console.log(MAINPATH)
 
   uploadFolderToCloudinary(MAINPATH,"WHOKNOWS")
   
