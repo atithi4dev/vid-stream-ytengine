@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDropzone } from "react-dropzone";
-import { uploadVideo } from "../api";
+import { getSignedUrl, verifyVideoUpload } from "../api";
 
 const Upload = () => {
   const navigate = useNavigate();
@@ -45,17 +45,40 @@ const Upload = () => {
     setError("");
 
     try {
-      const formData = new FormData();
-      formData.append("title", title);
-      formData.append("description", description);
-      formData.append("videoFile", videoFile);
-      formData.append("thumbnail", thumbnail);
+      // Step 1: Get signed URL from backend
+      const signedUrlResponse = await getSignedUrl(
+        videoFile.name,
+        title,
+        description,
+        videoFile.type
+      );
+      
+      const { uploadUrl, videoId } = signedUrlResponse?.data?.data;
+      
+      if (!uploadUrl || !videoId) {
+        throw new Error("Failed to get signed URL");
+      }
 
-      const response = await uploadVideo(formData);
-      const created = response?.data?.data;
-      navigate(`/watch/${created?._id}`);
+      // Step 2: Upload video directly to S3 using signed URL
+      const uploadResponse = await fetch(uploadUrl, {
+        method: "PUT",
+        body: videoFile,
+        headers: {
+          "Content-Type": videoFile.type,
+        },
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error("Failed to upload video to S3");
+      }
+
+      // Step 3: Verify upload with backend
+      await verifyVideoUpload(videoId);
+
+      // Step 4: Navigate to watch page
+      navigate(`/watch/${videoId}`);
     } catch (uploadError) {
-      setError(uploadError?.response?.data?.message || "Failed to upload video.");
+      setError(uploadError?.response?.data?.message || uploadError.message || "Failed to upload video.");
     } finally {
       setSubmitting(false);
     }

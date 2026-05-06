@@ -14,6 +14,19 @@ export const uploadVideo = (formData)=>{
     });
 }
 
+export const getSignedUrl = (filename, title, description, fileType) => {
+    return api.post("/videos/upload-video", {
+        filename,
+        title,
+        description,
+        fileType,
+    });
+}
+
+export const verifyVideoUpload = (videoId) => {
+    return api.put(`/videos/upload-complete/${videoId}`);
+}
+
 export const updateVideo = (id, formData) => {
     return api.patch(`/videos/${id}`, formData);
 }

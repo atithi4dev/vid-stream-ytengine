@@ -1,13 +1,14 @@
 import { z } from "zod";
 import dotenv from "dotenv";
-import { JWT_CONFIG } from "./jwt";
+import { JWT_CONFIG } from "./jwt.js";
+import logger from "../logger/logger.js";
 
 dotenv.config();
 
 const envSchema = z.object({
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
 
-    PORT: z.enum().default(8001),
+    PORT: z.coerce.number().default(8001),
 
     CORS_ORIGIN: z.string().url(),
 
@@ -25,19 +26,19 @@ const envSchema = z.object({
     CLOUDINARY_URL: z.string().min(1),
 
     REDIS_HOST: z.string().min(1),
-    REDIS_PORT: z.enum().default(6379),
+    REDIS_PORT: z.coerce.number().default(6379),
 
     AWS_REGION: z.string(),
     AWS_ACCESS_KEY_ID: z.string(),
     AWS_SECRET_ACCESS_KEY: z.string(),
-    
+    AWS_S3_BUCKET_NAME: z.string(),    
 })
 
 const result = envSchema.safeParse(process.env);
 
 if (!result.success) {
 
-    console.error("Invalid environment variables", result.error.flatten().fieldErrors);
+    logger.error("Invalid environment variables", result.error.flatten().fieldErrors);
     process.exit(1);
 
 }

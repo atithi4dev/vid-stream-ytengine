@@ -28,19 +28,6 @@ const uploadOnCloudinary = async (localFilePath) => {
   }
 };
 
-const uploadVideoOnCloudinary = async (localFilePath) => {
-  try {
-    const response = await cloudinary.uploader.upload(localFilePath, {
-      resource_type: "video",
-      folder: "videos",
-    });
-    return response;
-  } catch (error) {
-    fs.unlinkSync(localFilePath);
-    return null;
-  }
-};
-
 const deleteFromCloudinary = async (publicId) => {
   try {
     const result = await cloudinary.uploader.destroy(publicId);
@@ -95,43 +82,12 @@ const uploadFolderToCloudinary = async (localFolderPath, cloudFolderName) => {
     return uploadResults;
   } catch (error) {
     logger.error("Error uploading deep folder to Cloudinary:", error);
-    console.error(error);
     return null;
   }
 };
 
-const deleteFolderOnCloudinary = async (folderName) => {
-  try {
-    // Step 1: Delete all resources in the folder
-    await cloudinary.api.delete_resources_by_prefix(`${folderName}/`, {
-      resource_type: "auto",
-    });
-
-    // Step 2: Delete the folder itself
-    const result = await cloudinary.api.delete_folder(folderName);
-    return result;
-  } catch (error) {
-    logger.error("Error deleting folder from Cloudinary:", error);
-    return null;
-  }
-};
-
-
-const deleteVideoFromCloudinary = async (publicId) => {
-  try {
-    const result = await cloudinary.uploader.destroy(publicId, {
-      resource_type: "video",
-    });
-  } catch (error) {
-    logger.error("Error deleting video from Cloudinary:", error);
-    return null;
-  }
-};
 export {
   uploadFolderToCloudinary,
-deleteFolderOnCloudinary,
   uploadOnCloudinary,
-  uploadVideoOnCloudinary,
   deleteFromCloudinary,
-  deleteVideoFromCloudinary,
 };

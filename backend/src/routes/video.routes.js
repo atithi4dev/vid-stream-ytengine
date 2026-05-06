@@ -3,7 +3,8 @@ import {
   getAllPublishedVideos,
   deleteVideo,
   getVideoById,
-  publishAVideo,
+  videoSignedUrl,
+  verifyVideoUpload,
   togglePublishStatus,
   updateVideo,
   getAllOwnVideos,
@@ -20,20 +21,9 @@ router.route("/published").get(getAllPublishedVideos);
 router
   .route("/")
   .get(verifyJwt, getAllOwnVideos)
-  .post(
-    verifyJwt,
-    upload.fields([
-      {
-        name: "videoFile",
-        maxCount: 1,
-      },
-      {
-        name: "thumbnail",
-        maxCount: 1,
-      },
-    ]),
-    publishAVideo
-  );
+
+router.post("/upload-video", verifyJwt, videoSignedUrl);
+router.put("/upload-complete/:videoId", verifyJwt, verifyVideoUpload);
 
 router
   .route("/:videoId")
