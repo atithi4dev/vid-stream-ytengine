@@ -22,14 +22,14 @@ router
   .route("/")
   .get(verifyJwt, getAllOwnVideos)
 
-router.post("/upload-video", verifyJwt, videoSignedUrl);
-router.put("/upload-complete/:videoId", verifyJwt, verifyVideoUpload);
+router.post("/upload-urls", verifyJwt, videoSignedUrl);
+router.patch("/upload-complete/:videoId", verifyJwt, verifyVideoUpload);
 
 router
   .route("/:videoId")
   .get(verifyJwt, getVideoById)
   .delete(verifyJwt, deleteVideo)
-  .patch(verifyJwt, upload.single("thumbnail"), updateVideo);
+  .patch(verifyJwt, updateVideo);
 
 router.route("/stream/:videoId/progressive").get(progressiveStream);
 router.route("/stream/:videoId/adaptive").get(adaptiveStream);
