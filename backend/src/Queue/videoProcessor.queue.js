@@ -1,6 +1,6 @@
 import { Queue } from "bullmq";
 import IORedis from "ioredis";
-import { REDIS_CONFIG } from "../../config/cache.js";
+import { REDIS_CONFIG } from "../config/cache.js";
 
 const connection = new IORedis({
     host: REDIS_CONFIG.HOST || "yt-redis",

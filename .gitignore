@@ -4,15 +4,12 @@
 .env.*.local
 backend/.env
 backend/.env.local
-workers/worker-hls/.env
-workers/worker-hls/.env.local
-workers/worker-transcode/.env
-workers/worker-transcode/.env.local
+workers/videoProcessor/.env
+workers/videoProcessor/.env.local
 
 # Dependencies
 node_modules/
-workers/worker-hls/node_modules/
-workers/worker-transcode/node_modules/
+workers/videoProcessor/node_modules/
 
 # Logs
 logs/

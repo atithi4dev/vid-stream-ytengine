@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDropzone } from "react-dropzone";
-import { getSignedUrl, verifyVideoUpload } from "../api";
+import { getSignedUrls, verifyVideoUpload } from "../api";
 
 const Upload = () => {
   const navigate = useNavigate();
@@ -11,6 +11,9 @@ const Upload = () => {
   const [videoFile, setVideoFile] = useState(null);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  
+  const abortControllerRef = useRef(null);
+  const submissionInProgressRef = useRef(false);
 
   const onDropVideo = (acceptedFiles) => {
     if (acceptedFiles?.[0]) setVideoFile(acceptedFiles[0]);
@@ -39,50 +42,95 @@ const Upload = () => {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    
+    if (submissionInProgressRef.current) {
+      console.warn("Upload already in progress, ignoring duplicate submission");
+      return;
+    }
+    
     if (!canSubmit) return;
 
+    submissionInProgressRef.current = true;
     setSubmitting(true);
     setError("");
 
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+
     try {
-      // Step 1: Get signed URL from backend
-      const signedUrlResponse = await getSignedUrl(
+      const signedUrlsResponse = await getSignedUrls(
         videoFile.name,
+        thumbnail.name,
         title,
         description,
-        videoFile.type
+        videoFile.type,
+        thumbnail.type
       );
       
-      const { uploadUrl, videoId } = signedUrlResponse?.data?.data;
+      if (signal.aborted) {
+        console.log("Upload cancelled");
+        return;
+      }
       
-      if (!uploadUrl || !videoId) {
-        throw new Error("Failed to get signed URL");
+      const { videoUploadUrl, thumbnailUploadUrl, videoId } = signedUrlsResponse?.data?.data;
+      
+      if (!videoUploadUrl || !thumbnailUploadUrl || !videoId) {
+        throw new Error("Failed to get signed URLs");
       }
 
-      // Step 2: Upload video directly to S3 using signed URL
-      const uploadResponse = await fetch(uploadUrl, {
+      const videoUploadResponse = await fetch(videoUploadUrl, {
         method: "PUT",
         body: videoFile,
         headers: {
           "Content-Type": videoFile.type,
         },
+        signal,
       });
 
-      if (!uploadResponse.ok) {
+      if (!videoUploadResponse.ok) {
         throw new Error("Failed to upload video to S3");
       }
 
-      // Step 3: Verify upload with backend
+      const thumbnailUploadResponse = await fetch(thumbnailUploadUrl, {
+        method: "PUT",
+        body: thumbnail,
+        headers: {
+          "Content-Type": thumbnail.type,
+        },
+        signal,
+      });
+
+      if (!thumbnailUploadResponse.ok) {
+        throw new Error("Failed to upload thumbnail to S3");
+      }
+
       await verifyVideoUpload(videoId);
 
-      // Step 4: Navigate to watch page
       navigate(`/watch/${videoId}`);
     } catch (uploadError) {
-      setError(uploadError?.response?.data?.message || uploadError.message || "Failed to upload video.");
+      if (!signal.aborted) {
+        setError(uploadError?.response?.data?.message || uploadError.message || "Failed to upload video.");
+        console.error("Upload error:", uploadError);
+      }
     } finally {
+      if (!signal.aborted) {
+        submissionInProgressRef.current = false;
+      }
       setSubmitting(false);
     }
   };
+
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">

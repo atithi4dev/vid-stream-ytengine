@@ -2,11 +2,6 @@ import { asyncHandler } from "../utils/api-utils/asyncHandler.js";
 import { ApiError } from "../utils/api-utils/ApiError.js";
 import User from "../models/user.models.js";
 import mongoose, { isValidObjectId } from "mongoose";
-import {
-  uploadOnCloudinary,
-  deleteFromCloudinary,
-  uploadFolderToCloudinary
-} from "../utils/assets-utils/Cloudinary.js";
 import { ApiResponse } from "../utils/api-utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
 import path from 'path';

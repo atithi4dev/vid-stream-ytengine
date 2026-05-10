@@ -1,0 +1,19 @@
+{
+  "name": "videoprocessor",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@aws-sdk/client-ecs": "^3.1045.0",
+    "bullmq": "^5.76.6",
+    "dotenv": "^17.4.2",
+    "ioredis": "^5.10.1"
+  }
+}

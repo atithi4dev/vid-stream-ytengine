@@ -7,11 +7,7 @@ import User from "../models/user.models.js";
 import { ApiError } from "../utils/api-utils/ApiError.js";
 import { ApiResponse } from "../utils/api-utils/ApiResponse.js";
 import { asyncHandler } from "../utils/api-utils/asyncHandler.js";
-import { videoQueue } from "../jobs/Queue/videoProcessor.queue.js";
-import {
-  uploadOnCloudinary,
-  deleteFromCloudinary,
-} from "../utils/assets-utils/Cloudinary.js";
+import { videoQueue } from "../Queue/videoProcessor.queue.js";
 
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { HeadObjectCommand, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
@@ -446,13 +442,13 @@ const getVideoById = asyncHandler(async (req, res) => {
     : false;
 
   const s3DataKeys = ["videoFile", "thumbnail", "owner.avatar"];
-  video = attachS3Urls(video, s3DataKeys);
+  const videoObj = attachS3Urls(video, s3DataKeys);
 
   return res.status(200).json(
     new ApiResponse(
       200,
       {
-        ...video,
+        ...videoObj,
         likeCount: videoLikesCount,
         isLikedByUser,
         isOwnerSubscribed,

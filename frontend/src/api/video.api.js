@@ -14,17 +14,20 @@ export const uploadVideo = (formData)=>{
     });
 }
 
-export const getSignedUrl = (filename, title, description, fileType) => {
-    return api.post("/videos/upload-video", {
-        filename,
+export const getSignedUrls = (videoFilename, thumbnailFilename, title, description, videoFileType, thumbnailFileType) => {
+    console.log(videoFilename, thumbnailFilename, title, description, videoFileType, thumbnailFileType);
+    return api.post("/videos/upload-urls", {
+        videoFilename,
+        thumbnailFilename,
         title,
         description,
-        fileType,
+        videoFileType,
+        thumbnailFileType,
     });
 }
 
 export const verifyVideoUpload = (videoId) => {
-    return api.put(`/videos/upload-complete/${videoId}`);
+    return api.patch(`/videos/upload-complete/${videoId}`);
 }
 
 export const updateVideo = (id, formData) => {
