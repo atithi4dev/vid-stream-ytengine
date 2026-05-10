@@ -2,11 +2,11 @@
  * Redis Cache Configuration
  */
 
-import { env } from "./env";
+import { env } from "./env.js";
 
 export const REDIS_CONFIG = {
     // From cache.service.js and videoProcessor.queue.js
-    HOST: env || 'yt-redis',
+    HOST: env.REDIS_HOST || 'yt-redis',
     PORT: parseInt(env.REDIS_PORT) || 6379,
 
     // From cache.service.js withRedisRetry()

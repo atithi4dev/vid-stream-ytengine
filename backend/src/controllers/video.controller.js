@@ -7,63 +7,56 @@ import User from "../models/user.models.js";
 import { ApiError } from "../utils/api-utils/ApiError.js";
 import { ApiResponse } from "../utils/api-utils/ApiResponse.js";
 import { asyncHandler } from "../utils/api-utils/asyncHandler.js";
-import { videoQueue } from "../jobs/Queue/videoProcessor.queue.js";
-import {
-  uploadVideoOnCloudinary,
-  deleteVideoFromCloudinary,
-  uploadOnCloudinary,
-  deleteFromCloudinary,
-} from "../utils/assets-utils/Cloudinary.js";
+import { videoQueue } from "../Queue/videoProcessor.queue.js";
+
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { HeadObjectCommand, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { attachS3Urls, AWS_CONFIG, s3 } from "../config/s3.js";
+
 import fs from "fs";
+import logger from "../logger/logger.js";
 
 const getAllOwnVideos = asyncHandler(async (req, res) => {
   let { page = 1, limit = 10, query } = req.query;
   let { sortBy = "createdAt", sortType = "desc" } = req.query;
 
-  let allowedSortTypes = ["asc", "desc"];
-  let allowedSortByFields = ["createdat", "duration"];
+  const allowedSortTypes = ["asc", "desc"];
+  const allowedSortByFields = ["createdat", "duration"];
 
   page = parseInt(page);
   limit = parseInt(limit);
+
   if (!page || !limit) {
-    throw new ApiError(400, "Page and limit are required");
-  }
-
-  let matchStage = {};
-  matchStage.owner = req.user._id;
-
-  if (query) {
-    const queryWords = query.trim().split(/\s+/);
-    matchStage.$or = await queryWords.flatMap((word) => [
-      { title: { $regex: word, $options: "i" } },
-      { description: { $regex: word, $options: "i" } },
-    ]);
+    throw new ApiError(400, "Page and limit are required and must be valid numbers");
   }
 
   sortType = sortType.toLowerCase();
-
-  if (!allowedSortTypes.includes(sortType)) {
-    throw new ApiError(
-      400,
-      `Sort type must be one of ${allowedSortTypes.join(", ")}`
-    );
-  }
-
-  let sortOrder = sortType === "asc" ? 1 : -1;
-
   sortBy = sortBy.toLowerCase();
 
-  if (!allowedSortByFields.includes(sortBy)) {
-    throw new ApiError(
-      400,
-      `Sort by must be one of ${allowedSortByFields.join(", ")}`
-    );
+  if (sortType && !allowedSortTypes.includes(sortType)) {
+    throw new ApiError(400, `Sort type must be one of ${allowedSortTypes.join(", ")}`);
+  }
+
+  if (sortBy && !allowedSortByFields.includes(sortBy)) {
+    throw new ApiError(400, `Sort by must be one of ${allowedSortByFields.join(", ")}`);
+  }
+
+  let matchStage = {};
+
+  matchStage.owner = new mongoose.Types.ObjectId(req.user._id);
+
+  if (query) {
+    const queryWords = query.trim().split(/\s+/); // Split by whitespace(more than one space)
+    // $or condition for each word to search in both title and description
+    matchStage.$or = queryWords.flatMap((word) => [
+      { title: { $regex: word, $options: "i" } },
+      { description: { $regex: word, $options: "i" } },
+    ])
   }
 
   if (sortBy === "createdat") {
     sortBy = "createdAt";
   }
-
   const pipeline = [
     { $match: matchStage },
     {
@@ -72,7 +65,7 @@ const getAllOwnVideos = asyncHandler(async (req, res) => {
         localField: "owner",
         foreignField: "_id",
         as: "owner",
-      },
+      }
     },
     {
       $unwind: "$owner",
@@ -81,6 +74,7 @@ const getAllOwnVideos = asyncHandler(async (req, res) => {
       $project: {
         _id: 1,
         title: 1,
+        videoFile: 1,
         thumbnail: 1,
         duration: 1,
         views: 1,
@@ -88,19 +82,30 @@ const getAllOwnVideos = asyncHandler(async (req, res) => {
         createdAt: 1,
         "owner._id": 1,
         "owner.userName": 1,
-        "owner.profilePicture": 1,
-      },
-    },
-  ];
+        "owner.avatar": 1,
+      }
+    }
+  ]
 
   const options = {
     page: page || 1,
     limit: limit || 30,
-    sort: { [sortBy]: sortOrder },
-  };
+    sort: { [sortBy]: sortType === "asc" ? 1 : -1 },
+  }
+
+  // Execute the aggregation pipeline with pagination, if await is added here, it will wait for the aggregation to complete before applying pagination, which can lead to performance issues. By passing the aggregate object directly to aggregatePaginate, it allows the pagination to be applied at the database level, optimizing the query execution.
 
   const aggregate = Video.aggregate(pipeline);
   const result = await Video.aggregatePaginate(aggregate, options);
+
+  if (page > result.totalPages) {
+    return res
+      .status(400)
+      .json(new ApiResponse(400, null, "Requested page exceeds total pages."));
+  }
+
+  const s3DataKeys = ["videoFile", "thumbnail", "owner.avatar"];
+  result.docs = attachS3Urls(result.docs, s3DataKeys);
 
   res
     .status(200)
@@ -188,7 +193,7 @@ const getAllPublishedVideos = asyncHandler(async (req, res) => {
         createdAt: 1,
         "owner._id": 1,
         "owner.userName": 1,
-        "owner.profilePicture": 1,
+        "owner.avatar": 1,
       },
     },
   ];
@@ -207,73 +212,162 @@ const getAllPublishedVideos = asyncHandler(async (req, res) => {
       .json(new ApiResponse(400, null, "Requested page exceeds total pages."));
   }
 
+  const s3DataKeys = ["videoFile", "thumbnail", "owner.avatar"];
+  result.docs = attachS3Urls(result.docs, s3DataKeys);
+
   res
     .status(200)
     .json(new ApiResponse(200, result, "Videos fetched successfully"));
 });
 
-const publishAVideo = asyncHandler(async (req, res) => {
-  const { title, description } = req.body;
+const videoSignedUrl = asyncHandler(async (req, res) => {
+  let video;
+  try {
+    if (!req.user || !req.user._id || !isValidObjectId(req.user._id)) {
+      throw new ApiError(400, "User ID is required and must be a valid ObjectId");
+    }
+
+    const { videoFilename, thumbnailFilename, title, description, videoFileType, thumbnailFileType } = req.body;
+
+    if (
+      !videoFilename ||
+      !videoFileType ||
+      !thumbnailFilename ||
+      !thumbnailFileType ||
+      !title ||
+      !description
+    ) {
+      throw new ApiError(400, "Required fields: videoFilename, title, description, videoFileType");
+    };
+
+    if (!videoFileType.startsWith("video/")) {
+      throw new ApiError(400, "Invalid videoFile type. Only video files are allowed.");
+    }
+    if (!thumbnailFileType.startsWith("image/")) {
+      throw new ApiError(400, "Invalid thumbnailFile type. Only image files are allowed.");
+    }
+    video = await Video.create({
+      title,
+      description,
+      owner: req.user._id,
+      encodingStatus: "pending_upload",
+    })
+
+    const videoExt = videoFileType.split("/")[1];
+    const videoKey = `videos/${video._id}/${video._id}.${videoExt}`;
+
+    const thumbnailExt = thumbnailFileType.split("/")[1];
+    const thumbnailKey = `thumbnails/${video._id}.${thumbnailExt}`;
+
+    const videoCommand = new PutObjectCommand({
+      Bucket: AWS_CONFIG.AWS_S3_BUCKET_NAME,
+      Key: videoKey,
+      ContentType: videoFileType,
+    });
+
+    const thumbnailCommand = new PutObjectCommand({
+      Bucket: AWS_CONFIG.AWS_S3_BUCKET_NAME,
+      Key: thumbnailKey,
+      ContentType: thumbnailFileType,
+    });
+
+    const videoUploadUrl = await getSignedUrl(
+      s3,
+      videoCommand,
+      {
+        expiresIn: 60 * 5
+      }
+    );
+
+    const thumbnailUploadUrl = await getSignedUrl(
+      s3,
+      thumbnailCommand,
+      {
+        expiresIn: 60 * 5
+      }
+    );
+
+    video.videoFile = videoKey;
+    video.thumbnail = thumbnailKey;
+
+    await video.save();
+
+    res.status(200).json(new ApiResponse(200, { videoUploadUrl, thumbnailUploadUrl, videoId: video._id }, "Signed URLs generated successfully"));
+  } catch (error) {
+    logger.error("Error generating signed URL:", error);
+    if (video?._id) {
+      await Video.findByIdAndDelete(video._id);
+    }
+    res.status(500).json(new ApiError(500, error.message || "Failed to generate signed URL"));
+  }
+})
+
+const verifyVideoUpload = asyncHandler(async (req, res) => {
 
   if (!req.user || !req.user._id || !isValidObjectId(req.user._id)) {
     throw new ApiError(400, "User ID is required and must be a valid ObjectId");
   }
 
-  if (!req.files || !req.files.videoFile || !req.files.thumbnail) {
-    throw new ApiError(400, "Video file and thumbnail are required");
+  const videoId = req.params.videoId;
+
+  if (!videoId || !isValidObjectId(videoId)) {
+    throw new ApiError(400, "Video ID is required and must be a valid ObjectId");
   }
 
-  if (!title?.trim() || !description?.trim()) {
-    throw new ApiError(400, "Title and description are required");
+  const video = await Video.findById(videoId);
+
+  if (!video) {
+    throw new ApiError(404, "Video not found");
   }
 
-  const videoLocalPath = req.files.videoFile[0].path;
-  const thumbnailLocalPath = req.files.thumbnail[0].path;
-  const outputPath = "./public/output";
-  let videoFile = null;
-  let thumbnail = null;
+  if (video.owner.toString() !== req.user._id.toString()) {
+    return res
+      .status(403)
+      .json(
+        new ApiResponse(
+          403,
+          null,
+          "Not Authorized to verify upload of this video"
+        )
+      );
+  }
+
+  if (video.encodingStatus !== "pending_upload") {
+    throw new ApiError(400, "Video upload cannot be verified in its current state");
+  }
+  if (!video.videoFile || !video.thumbnail) {
+    throw new ApiError(400, "Video file or thumbnail information is missing in the video document");
+  }
+
   try {
-    if (videoLocalPath) {
-      videoFile = await uploadVideoOnCloudinary(videoLocalPath);
-      if (!videoFile?.url) {
-        throw new ApiError(500, "Video upload failed");
-      }
+    const videoS3Res = await s3.send(new HeadObjectCommand({
+      Bucket: AWS_CONFIG.AWS_S3_BUCKET_NAME,
+      Key: video.videoFile,
+    }));
+
+    const thumbnailS3Res = await s3.send(new HeadObjectCommand({
+      Bucket: AWS_CONFIG.AWS_S3_BUCKET_NAME,
+      Key: video.thumbnail,
+    }));
+
+    if (
+      !videoS3Res.ContentLength || videoS3Res.ContentLength <= 0 ||
+      !thumbnailS3Res.ContentLength || thumbnailS3Res.ContentLength <= 0
+    ) {
+      video.encodingStatus = "failed";
+      await video.save();
+      throw new Error("Empty upload");
     }
 
-    if (thumbnailLocalPath) {
-      thumbnail = await uploadOnCloudinary(thumbnailLocalPath);
-      if (!thumbnail?.url) {
-        await deleteVideoFromCloudinary(videoFile?.public_id);
-        throw new ApiError(500, "Thumbnail upload failed");
-      }
-    }
-
-    const duration = videoFile?.duration || 0;
-
-    const publicId = {
-      thumbnail: thumbnail?.public_id || null,
-      video: videoFile?.public_id || null,
-    };
-
-    const video = new Video({
-      videoFile: videoFile?.url,
-      thumbnail: thumbnail?.url,
-      title,
-      description,
-      duration,
-      owner: req.user._id,
-      isPublished: true,
-      publicId,
-    });
-
+    video.encodingStatus = "queued";
     await video.save();
 
+    // Queue
     await videoQueue.add(
-      "video-transcode",
+      "video-processing",
       {
-        inputPath: videoLocalPath,
-        baseOutputPath: outputPath,
         videoId: video._id,
+        videoFileKey: video.videoFile,
       },
       {
         attempts: 5,
@@ -286,31 +380,12 @@ const publishAVideo = asyncHandler(async (req, res) => {
       }
     );
 
-    return res
-      .status(201)
-      .json(new ApiResponse(201, video, "Video published successfully"));
+
+    return res.status(200).json(new ApiResponse(200, video, "Video upload verified and queued for encoding"));
   } catch (error) {
-    console.error("Error publishing video:", error);
-
-    try {
-      await fs.promises.unlink(videoLocalPath);
-    } catch (err) {
-      console.warn("Video local file already deleted or not found.");
-    }
-
-    try {
-      await fs.promises.unlink(thumbnailLocalPath);
-    } catch (err) {
-      console.warn("Thumbnail local file already deleted or not found.");
-    }
-
-    if (videoFile?.public_id)
-      await deleteVideoFromCloudinary(videoFile.public_id);
-    if (thumbnail?.public_id) await deleteFromCloudinary(thumbnail.public_id);
-
-    throw new ApiError(500, error.message || "Failed to publish video");
+    return res.status(500).json(new ApiError(500, error.message || "Error verifying video upload"));
   }
-});
+})
 
 const getVideoById = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
@@ -323,17 +398,19 @@ const getVideoById = asyncHandler(async (req, res) => {
   }
 
   const video = await Video.findById(videoId)
-    .populate("owner", "_id userName profilePicture")
+    .populate("owner", "_id userName avatar")
     .lean();
 
   if (!video) {
     throw new ApiError(404, "Video not found");
   }
+
   const userId = req.user?._id;
   const user = await User.findById(userId);
   const alreadyWatched = user.watchHistory.some(
     (id) => id.toString() === videoId.toString()
   );
+
   if (!alreadyWatched) {
     user.watchHistory.push(videoId);
     await user.save();
@@ -364,11 +441,14 @@ const getVideoById = asyncHandler(async (req, res) => {
     ? true
     : false;
 
+  const s3DataKeys = ["videoFile", "thumbnail", "owner.avatar"];
+  const videoObj = attachS3Urls(video, s3DataKeys);
+
   return res.status(200).json(
     new ApiResponse(
       200,
       {
-        ...video,
+        ...videoObj,
         likeCount: videoLikesCount,
         isLikedByUser,
         isOwnerSubscribed,
@@ -389,7 +469,7 @@ const updateVideo = asyncHandler(async (req, res) => {
     );
   }
 
-  const video = await Video.findById(videoId);
+  let video = await Video.findById(videoId);
   if (!video) {
     throw new ApiError(404, "Video not found");
   }
@@ -405,13 +485,14 @@ const updateVideo = asyncHandler(async (req, res) => {
         )
       );
   }
+  if (video.encodingStatus !== "ready") {
+    throw new ApiError(400, "Video details can only be updated when video is in ready state");
+  }
 
-  const isThumbnailBeingUpdated = req.file?.path;
-
-  if (!title && !description && !isThumbnailBeingUpdated) {
+  if (!title && !description) {
     throw new ApiError(
       400,
-      "At least one of title, description, or thumbnail must be provided to update."
+      "At least one of title, description must be provided to update."
     );
   }
 
@@ -419,30 +500,27 @@ const updateVideo = asyncHandler(async (req, res) => {
     if (title) video.title = title;
     if (description) video.description = description;
 
-    if (isThumbnailBeingUpdated) {
-      const thumbnailLocalPath = req.file.path;
-      const thumbnail = await uploadOnCloudinary(thumbnailLocalPath);
-
-      if (!thumbnail?.url) {
-        throw new ApiError(500, "Thumbnail upload failed");
-      }
-
-      await deleteFromCloudinary(video.publicId.thumbnail);
-
-      video.thumbnail = thumbnail.url;
-      video.publicId.thumbnail = thumbnail.public_id;
-    }
-
     await video.save();
+
+    const s3DataKeys = ["videoFile", "thumbnail"];
+    const videoObj = video.toObject();
+    video = attachS3Urls(videoObj, s3DataKeys);
 
     return res
       .status(200)
       .json(new ApiResponse(200, video, "Video details updated successfully"));
   } catch (error) {
-    console.error("Error updating video:", error);
+    logger.error("Error updating video:", error);
     throw new ApiError(500, error.message || "Unable to update video details");
   }
 });
+
+const updateVideoThumbnail = asyncHandler(async (req, res) => {
+
+})
+const confirmVideoThumbnailUpdate = asyncHandler(async (req, res) => {
+
+})
 
 const deleteVideo = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
@@ -472,17 +550,24 @@ const deleteVideo = asyncHandler(async (req, res) => {
   }
 
   try {
-    if (video?.publicId?.video)
-      await deleteVideoFromCloudinary(video?.publicId?.video);
-  } catch (error) {
-    console.error("Error deleting video from Cloudinary:", error);
-  }
+    await s3.send(
+      new DeleteObjectCommand({
+        Bucket: AWS_CONFIG.AWS_S3_BUCKET_NAME,
+        Key: video.videoFile,
+      })
+    );
+    await s3.send(
+      new DeleteObjectCommand({
+        Bucket: AWS_CONFIG.AWS_S3_BUCKET_NAME,
+        Key: video.thumbnail,
+      })
+    )
 
-  try {
-    if (video?.publicId?.thumbnail)
-      await deleteFromCloudinary(video?.publicId?.thumbnail);
   } catch (error) {
-    console.error("Error deleting thumbnail from Cloudinary:", error);
+    logger.error("Error deleting video from S3:", error);
+    return res
+      .status(500)
+      .json(new ApiError(500, "Error deleting video file from storage"));
   }
 
   await Video.findByIdAndDelete(videoId);
@@ -500,7 +585,7 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
     );
   }
 
-  const video = await Video.findById(videoId);
+  let video = await Video.findById(videoId);
   if (!video) {
     throw new ApiError(404, "Video not found");
   }
@@ -517,6 +602,11 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
   }
   video.isPublished = !video.isPublished;
   await video.save();
+
+  video = video.toObject();
+  const s3DataKeys = ["videoFile", "thumbnail"];
+  video = attachS3Urls(video, s3DataKeys);
+
   return res
     .status(200)
     .json(
@@ -530,6 +620,7 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
 
 const adaptiveStream = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
+
   if (!videoId || !isValidObjectId(videoId)) {
     throw new ApiError(
       400,
@@ -542,7 +633,7 @@ const adaptiveStream = asyncHandler(async (req, res) => {
       throw new ApiError(404, "Video not found");
     }
 
-    const hls = video.hls;
+    let hls = video.hls;
 
     if (
       !hls ||
@@ -552,6 +643,10 @@ const adaptiveStream = asyncHandler(async (req, res) => {
     ) {
       throw new ApiError(404, "Video metaData not found");
     } else {
+
+      const s3DataKeys = ["masterUrl", "resolutions.1080p.playlistUrl", "resolutions.720p.playlistUrl", "resolutions.360p.playlistUrl"];
+      hls = attachS3Urls(hls, s3DataKeys);
+
       return res
         .status(200)
         .json(
@@ -563,7 +658,7 @@ const adaptiveStream = asyncHandler(async (req, res) => {
         );
     }
   } catch (error) {
-    console.error(error);
+    logger.error(error);
     throw new ApiError(
       500,
       "Internal server error in streaming the hls video",
@@ -572,6 +667,7 @@ const adaptiveStream = asyncHandler(async (req, res) => {
   }
 });
 
+// make it a signed stream url which expires in 1 min, this is to prevent unauthorized access to the video stream url, and also to prevent hotlinking of the video stream url  - CDN APPROACH WILL BE ADDED, afetr other features are implemented, for now this will ensure that only authorized users can access the video stream, and the url will expire after 1 min to prevent misuse.
 const progressiveStream = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
   if (!videoId || !isValidObjectId(videoId)) {
@@ -597,7 +693,7 @@ const progressiveStream = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, videoFile, "Video Fetched SuccessFully"));
     }
   } catch (error) {
-    console.error(error);
+    logger.error(error);
     throw new ApiError(500, "Internal server error", error);
   }
 });
@@ -606,7 +702,8 @@ export {
   getAllPublishedVideos,
   deleteVideo,
   getVideoById,
-  publishAVideo,
+  videoSignedUrl,
+  verifyVideoUpload,
   togglePublishStatus,
   updateVideo,
   getAllOwnVideos,

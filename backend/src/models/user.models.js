@@ -48,12 +48,12 @@ const userSchema = new Schema(
     refreshToken: {
       type: String,
     },
-    imageDetails: [
-      {
-        name: { type: String, required: true },
-        publicId: { type: String, required: true },
-      },
-    ],
+    pendingAvatar: {
+      type: String,
+    },
+    pendingCoverImage: {
+      type: String,
+    },
   },
   {
     timestamps: true,

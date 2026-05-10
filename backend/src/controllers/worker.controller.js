@@ -34,7 +34,7 @@ export const getAllHLSMetadata = async (hlsS3Path, hlsLocalPath, videoId) => {
                 size: sizeInKB,
             };
         } catch (err) {
-            console.warn(
+            logger.warn(
                 `Skipping HLS resolution ${res} for video ${videoId}: ${err.message}`
             );
             result[res] = {

@@ -5,11 +5,9 @@ const videoSchema = new Schema(
   {
     videoFile: {
       type: String,
-      required: true,
     },
     thumbnail: {
       type: String,
-      required: true,
     },
     title: {
       type: String,
@@ -34,14 +32,17 @@ const videoSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: "User",
     },
-    publicId: {
-      thumbnail: { type: String, default: null },
-      video: { type: String, default: null },
-    },
     encodingStatus: {
       type: String,
-      enum: ["pending", "processing", "ready"],
-      default: "pending",
+      enum: [
+        "pending_upload",
+        "queued",
+        "processing",
+        "transcoded",
+        "ready",
+        "failed"
+      ],
+      default: "pending_upload",
     },
     hls: {
       masterUrl: String,

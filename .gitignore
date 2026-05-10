@@ -1,0 +1,36 @@
+# Environment variables
+.env
+.env.local
+.env.*.local
+backend/.env
+backend/.env.local
+workers/videoProcessor/.env
+workers/videoProcessor/.env.local
+
+# Dependencies
+node_modules/
+workers/videoProcessor/node_modules/
+
+# Logs
+logs/
+logs/**/*.log
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# Runtime
+public/temp/
+public/output/
+temp/

@@ -1,17 +1,18 @@
-import {asyncHandler} from "../utils/api-utils/asyncHandler.js";
+import { asyncHandler } from "../utils/api-utils/asyncHandler.js";
 import { ApiError } from "../utils/api-utils/ApiError.js";
 import User from "../models/user.models.js";
-import mongoose from "mongoose";  
-import {
-  uploadOnCloudinary,
-  deleteFromCloudinary,
-  uploadFolderToCloudinary
-} from "../utils/assets-utils/Cloudinary.js";
+import mongoose, { isValidObjectId } from "mongoose";
 import { ApiResponse } from "../utils/api-utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
 import path from 'path';
 import { env } from "../config/env.js";
 import { JWT_CONFIG } from "../config/jwt.js";
+
+import logger from "../logger/logger.js";
+
+import { HeadObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { attachS3Urls, s3 } from "../config/s3.js";
 
 const generateAccessAndRefreshToken = async (userId) => {
   if (!userId) {
@@ -43,8 +44,9 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError(400, `All fields are required.`);
   }
 
-  const { userName, email, fullName, password } = req.body;
-
+  let { userName, email, fullName, password } = req.body;
+  userName = userName.toLowerCase(); 
+  
   ["fullName", "userName", "email", "password"].forEach((field) => {
     if (!req.body[field]?.trim()) {
       throw new ApiError(400, `All fields are required.`);
@@ -59,31 +61,6 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError(400, "User already exists with this username or email");
   }
 
-  // Upload Avatar and Cover Image on Cloudinary
-
-  const avatarLocalPath = req.files?.avatar?.[0]?.path;
-  const coverImageLocalPath = req.files?.coverImage?.[0]?.path;
-
-  let avatar;
-  if (avatarLocalPath) {
-    try {
-      avatar = await uploadOnCloudinary(avatarLocalPath);
-    } catch (error) {
-      console.error("Error uploading avatar:", error);
-      throw new ApiError(500, "Failed to upload avatar image");
-    }
-  }
-
-  let coverImage;
-  if (coverImageLocalPath) {
-    try {
-      coverImage = await uploadOnCloudinary(coverImageLocalPath);
-    } catch (error) {
-      console.error("Error uploading coverImage:", error);
-      throw new ApiError(500, "Failed to upload coverImage image");
-    }
-  }
-
   // Create User
   try {
     const user = await User.create({
@@ -91,18 +68,6 @@ const registerUser = asyncHandler(async (req, res) => {
       userName: userName.toLowerCase(),
       email,
       password,
-      avatar: avatar?.url || null,
-      coverImage: coverImage?.url || null,
-      imageDetails: [
-        {
-          name: "avatar",
-          publicId: avatar?.public_id || null,
-        },
-        {
-          name: "coverImage",
-          publicId: coverImage?.public_id || null,
-        },
-      ],
     });
 
     const createdUser = await User.findById(user._id).select(
@@ -116,16 +81,10 @@ const registerUser = asyncHandler(async (req, res) => {
       .status(201)
       .json(new ApiResponse(201, createdUser, "User registered successfully"));
   } catch (error) {
-    console.error("User Creation Failed:", error);
-    if (avatar) {
-      await deleteFromCloudinary(avatar.public_id);
-    }
-    if (coverImage) {
-      await deleteFromCloudinary(coverImage.public_id);
-    }
+    logger.error("User Creation Failed:", error);
     throw new ApiError(
       500,
-      "User creation failed also image being upload deleted"
+      "User creation failed. Please try again later.",
     );
   }
 });
@@ -134,7 +93,7 @@ const loginUser = asyncHandler(async (req, res) => {
   const { email, userName, password } = req.body;
 
   // validation
-  if (!email || !userName || !password) {
+  if ((!email && !userName) || !password) {
     throw new ApiError(400, "All fields are required.");
   }
 
@@ -159,12 +118,16 @@ const loginUser = asyncHandler(async (req, res) => {
   );
 
   const loggedInUser = await User.findById(user._id).select(
-    "-password -refreshToken"
+    "-password -refreshToken -pendingAvatar -pendingCoverImage"
   );
 
   if (!loggedInUser) {
     throw new ApiError(500, "User login failed");
   }
+
+  const s3DataKeys = ["avatar", "coverImage"];
+  let loggedInUserObj = loggedInUser.toObject();
+  loggedInUserObj = attachS3Urls(loggedInUserObj, s3DataKeys);
 
   return res
     .status(200)
@@ -172,7 +135,7 @@ const loginUser = asyncHandler(async (req, res) => {
     .cookie("refreshToken", refreshToken, JWT_CONFIG.COOKIE_OPTIONS)
     .json(
       new ApiResponse(200, {
-        user: loggedInUser,
+        user: loggedInUserObj,
         accessToken,
         refreshToken,
       })
@@ -235,7 +198,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
         )
       );
   } catch (error) {
-    console.error("Error refreshing access token:", error);
+    logger.error("Error refreshing access token:", error);
     throw new ApiError(500, "Failed to refresh access token");
   }
 });
@@ -275,7 +238,19 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
 });
 
 const getCurrentUser = asyncHandler(async (req, res) => {
-  res.status(200).json(new ApiResponse(200, req.user, "Current user details."));
+  if (!req.user || !req.user._id || !isValidObjectId(req.user._id)) {
+    throw new ApiError(404, "User not found");
+  }
+
+  const user = await User.findById(req.user._id).select(
+    "-password -refreshToken -pendingAvatar -pendingCoverImage"
+  );
+
+  const s3DataKeys = ["avatar", "coverImage"];
+  let userObj = user.toObject();
+  userObj = attachS3Urls(userObj, s3DataKeys);
+
+  res.status(200).json(new ApiResponse(200, userObj, "Current user details."));
 });
 
 const updateAccountDetails = asyncHandler(async (req, res) => {
@@ -293,11 +268,14 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
   if (!user) {
     throw new ApiError(404, "User not found");
   }
+
   const updateFields = {};
+
   if (fullName) {
     fullName = fullName.trim();
     updateFields.fullName = fullName;
   }
+
   if (userName) {
     userName = userName.trim();
     const existingUser = await User.findOne({
@@ -315,181 +293,189 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
     { new: true }
   ).select("-password -refreshToken");
 
+  const s3DataKeys = ["avatar", "coverImage"];
+  let updatedUserObj = updatedUser.toObject();
+  updatedUserObj = attachS3Urls(updatedUserObj, s3DataKeys);
+
   return res
     .status(200)
     .json(
-      new ApiResponse(200, updatedUser, "Account details updated successfully")
+      new ApiResponse(200, updatedUserObj, "Account details updated successfully")
     );
 });
 
-const updateUserAvatar = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user?._id);
-  if (!user) {
-    throw new ApiError(404, "User not found");
-  }
-  const MAINPATH = path.join(process.cwd(), "public/HelloTest")
+const profileImageSignedUrl = asyncHandler(async (req, res) => {
+  const { imageName, imageType, fileType } = req.body;
 
-  uploadFolderToCloudinary(MAINPATH,"WHOKNOWS")
-  
-  const public_id = user.imageDetails.find(
-    (img) => img.name === "avatar"
-  )?.publicId;
-  
-  
-  // Upload new avatar image to Cloudinary
-  
-  const avatarLocalPath = req.file?.path;
-  
-  if (!avatarLocalPath) {
-    throw new ApiError(400, "Avatar image is required");
-  }
-  
-  let avatar = await uploadOnCloudinary(avatarLocalPath);
-  
-  if (!avatar.url) {
-    throw new ApiError(500, "Failed to upload avatar image");
+  if (!imageType || (imageType !== "avatar" && imageType !== "coverImage")) {
+    throw new ApiError(400, "Invalid image type. Must be 'avatar' or 'coverImage'.");
   }
 
-  // Delete old avatar from cloudinary if exists
-  
-  if (public_id) {
-    await deleteFromCloudinary(public_id);
+  if (!fileType || !fileType.startsWith("image/")) {
+    throw new ApiError(400, "Invalid file type. Must be an image.");
   }
 
-  user.avatar = avatar.url;
-  user.imageDetails = user.imageDetails.map((img) =>
-    img.name === "avatar" ? { name: "avatar", publicId: avatar.public_id } : img
-  );
-  await user.save({ validateBeforeSave: false });
+  const userId = req.user?._id;
 
-  res
-    .status(200)
-    .json(new ApiResponse(200, user, "Avatar updated successfully"));
-});
-
-const updateUserCoverImage = asyncHandler(async (req, res) => {
-  const user = req.user;
-  if (!user) {
+  if (!userId) {
     throw new ApiError(404, "User not found");
   }
 
-  const oldCoverImage = user.coverImage;
+  const imageKey = `users/${userId}/${imageType.toLowerCase()}.jpg`;
 
-  const public_id = user.imageDetails.find(
-    (img) => img.name === "coverImage"
-  )?.publicId;
+  // generate signed url for direct upload to s3
+  const imageCommand = new PutObjectCommand({
+    Bucket: env.AWS_S3_BUCKET_NAME,
+    Key: imageKey,
+    ContentType: fileType,
+  })
 
-  if (oldCoverImage !== null) {
-    // Delete from cloudinary if exists
-    if (public_id) {
-      await deleteFromCloudinary(public_id);
-    }
-  }
-
-  // Upload new cover image to Cloudinary
-  const coverImageLocalPath = req.file?.path;
-  if (!coverImageLocalPath) {
-    throw new ApiError(400, "Cover image is required");
-  }
-  let coverImage = await uploadOnCloudinary(coverImageLocalPath);
-  if (!coverImage.url) {
-    throw new ApiError(500, "Failed to upload cover image");
-  }
-
-  const newCoverImageUrl = coverImage.url;
-  const imageDetails = {
-    name: "coverImage",
-    publicId: coverImage.public_id,
-  };
-  const updatedUser = await User.findByIdAndUpdate(
-    req.user._id,
+  const imageSignedUrl = await getSignedUrl(
+    s3,
+    imageCommand,
     {
-      $set: {
-        coverImage: newCoverImageUrl,
-        imageDetails: user.imageDetails.map((img) =>
-          img.name === "coverImage" ? imageDetails : img
-        ),
-      },
-    },
-    { new: true }
-  );
-  res
-    .status(200)
-    .json(
-      new ApiResponse(200, updatedUser, "Cover image updated successfully")
-    );
-});
+      expiresIn: 60 * 5
+    }
+  )
+
+  const user = await User.findById(userId);
+
+  if (imageType === "avatar") {
+    user.pendingAvatar = imageKey;
+  }
+
+  else if (imageType === "coverImage") {
+    user.pendingCoverImage = imageKey;
+  }
+
+  await user.save();
+
+  res.status(200).json(new ApiResponse(200, { imageSignedUrl, imageType }, "Signed URL generated successfully"));
+
+})
+
+const verifyProfileImageUpload = asyncHandler(async (req, res) => {
+
+  const { imageType } = req.body;
+
+  if (!req.user || !req.user._id || !isValidObjectId(req.user._id)) {
+    throw new ApiError(404, "User ID is required and must be valid ObjectId");
+  }
+
+  const user = await User.findById(req.user._id);
+
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  if (!imageType || (imageType !== "avatar" && imageType !== "coverImage")) {
+    throw new ApiError(400, "Invalid image type. Must be 'avatar' or 'coverImage'.");
+  }
+
+  try {
+    const imageS3Res = await s3.send(new HeadObjectCommand({
+      Bucket: env.AWS_S3_BUCKET_NAME,
+      Key: imageType === "avatar" ? user.pendingAvatar : user.pendingCoverImage
+    }))
+
+    if (!imageS3Res || imageS3Res.ContentLength <= 0) {
+      throw new ApiError(400, "Image not found in S3. Please upload the image before verification.");
+    }
+
+  } catch (error) {
+    throw new ApiError(500, "Error occurred while verifying profile image upload.");
+  }
+
+  if (imageType === "avatar") {
+    user.avatar = user.pendingAvatar;
+    user.pendingAvatar = null;
+  }
+  else if (imageType === "coverImage") {
+    user.coverImage = user.pendingCoverImage;
+    user.pendingCoverImage = null;
+  }
+
+  await user.save();
+
+  res.status(200).json(new ApiResponse(200, {}, "Profile image verified and updated successfully"));
+
+})
 
 const getUserChannelProfile = asyncHandler(async (req, res) => {
-    const {username} = req.params;
+  const { username } = req.params;
 
-    if(!username?.trim()) {
-        throw new ApiError(400, "Username is required");
-    }
+  if (!username?.trim()) {
+    throw new ApiError(400, "Username is required");
+  }
 
-    const channel = await User.aggregate(
-      [
-        {
-          $match:{
-            userName: username?.toLowerCase()
-          }
-        },
-        {
-          $lookup: {
-            from: "subscriptions",
-            localField: "_id",
-            foreignField: "channel",
-            as: "subscribers"
-          }
-        },
-        {
-          $lookup: {
-            from: "subscriptions",
-            localField: "_id",
-            foreignField: "subscriber",
-            as: "subscribedTo"
-          }
-        },
-        {
-          $addFields: {
-            subscribersCount: {
-              $size: "$subscribers"
-            },
-            channelSubscribedTo:{
-              $size: "$subscribedTo"
-            },
-            isSubscribed: {
-              $cond: {
-                if: {$in: [req.user?._id, "$subscribers.subscriber"]},
-                then: true,
-                else: false
-              }
+  const channel = await User.aggregate(
+    [
+      {
+        $match: {
+          userName: username?.toLowerCase()
+        }
+      },
+      {
+        $lookup: {
+          from: "subscriptions",
+          localField: "_id",
+          foreignField: "channel",
+          as: "subscribers"
+        }
+      },
+      {
+        $lookup: {
+          from: "subscriptions",
+          localField: "_id",
+          foreignField: "subscriber",
+          as: "subscribedTo"
+        }
+      },
+      {
+        $addFields: {
+          subscribersCount: {
+            $size: "$subscribers"
+          },
+          channelSubscribedTo: {
+            $size: "$subscribedTo"
+          },
+          isSubscribed: {
+            $cond: {
+              if: { $in: [req.user?._id, "$subscribers.subscriber"] },
+              then: true,
+              else: false
             }
           }
-        },
-        {
-          $project: {
-            fullName: 1,
-            userName: 1,
-            avatar: 1,
-            coverImage: 1,
-            subscribersCount: 1,
-            channelSubscribedTo: 1,
-            isSubscribed: 1,
-            email: 1
-          }
         }
-      ]
-    )
-    if(!channel || channel.length === 0) {
-        throw new ApiError(404, "Channel not found");
-    }
+      },
+      {
+        $project: {
+          fullName: 1,
+          userName: 1,
+          avatar: 1,
+          coverImage: 1,
+          subscribersCount: 1,
+          channelSubscribedTo: 1,
+          isSubscribed: 1,
+          email: 1
+        }
+      }
+    ]
+  )
+  if (!channel || channel.length === 0) {
+    throw new ApiError(404, "Channel not found");
+  }
+  const s3DataKeys = ["avatar", "coverImage"];
+  channel[0] = attachS3Urls(channel[0], s3DataKeys);
 
-    return res.status(200).json(new ApiResponse(200, channel[0], "Channel profile fetched successfully"));
+  return res.status(200).json(new ApiResponse(200, channel[0], "Channel profile fetched successfully"));
 })
 
 const getWatchHistory = asyncHandler(async (req, res) => {
 
+  if (!req.user || !req.user._id || !isValidObjectId(req.user._id)) {
+    throw new ApiError(404, "User not found");
+  }
 
   const user = await User.aggregate(
     [
@@ -532,11 +518,27 @@ const getWatchHistory = asyncHandler(async (req, res) => {
           ]
         }
       },
-      
+
     ]
   )
+  if (!user || user.length === 0) {
+    throw new ApiError(404, "User not found");
+  }
+  const s3DataKeys = [
+    "videoFile",
+    "thumbnail",
+    "owner.avatar",
+    "hls.masterUrl",
+    "hls.resolutions.360p.playlistUrl",
+    "hls.resolutions.720p.playlistUrl",
+    "hls.resolutions.1080p.playlistUrl",
+  ];
 
-  return res.status(200).json(new ApiResponse(200, user[0]?.watchHistory, "Watch history fetched successfully"))
+  const transformedData = attachS3Urls(user[0]?.watchHistory
+    , s3DataKeys);
+
+
+  return res.status(200).json(new ApiResponse(200, transformedData, "Watch history fetched successfully"))
 
 })
 
@@ -548,8 +550,8 @@ export {
   changeCurrentPassword,
   getCurrentUser,
   updateAccountDetails,
-  updateUserAvatar,
-  updateUserCoverImage,
+  profileImageSignedUrl,
+  verifyProfileImageUpload,
   getUserChannelProfile,
   getWatchHistory,
 };
