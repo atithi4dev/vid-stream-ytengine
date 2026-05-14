@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getUserChannelProfile, getPublishedVideos, toggleSubscription } from "../api";
-import { useAuth } from "../context/AuthContext";
+import { useAuthStore } from "../stores/authStore";
 import LoadingState from "../components/LoadingState";
 import EmptyState from "../components/EmptyState";
 import VideoCard from "../components/VideoCard";
@@ -9,7 +9,7 @@ import UserAvatar from "../components/UserAvatar";
 
 const Channel = () => {
   const { username } = useParams();
-  const { user } = useAuth();
+  const { user } = useAuthStore();
   const channelUsername = username === "me" ? user?.userName : username;
 
   const [channel, setChannel] = useState(null);
@@ -27,7 +27,9 @@ const Channel = () => {
         setChannel(profile);
 
         const videosRes = await getPublishedVideos({ userId: profile?._id, page: 1, limit: 20 });
-        setVideos(videosRes?.data?.data?.docs || []);
+        const videosData = videosRes?.data?.data || [];
+        const videosArray = Array.isArray(videosData) ? videosData : (videosData.docs || []);
+        setVideos(videosArray);
       } finally {
         setLoading(false);
       }
@@ -53,7 +55,7 @@ const Channel = () => {
 
   return (
     <div className="space-y-6">
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+      <div className="overflow-hidden rounded-2xl border-2 border-red-200 bg-white/95 shadow-[0_8px_32px_rgba(220,38,38,0.08)] dark:border-slate-800 dark:bg-black/60 dark:shadow-none">
         <div className="h-36 bg-slate-200">
           {channel.coverImage && <img src={channel.coverImage} alt="cover" className="h-full w-full object-cover" />}
         </div>
@@ -72,7 +74,7 @@ const Channel = () => {
             <button
               onClick={handleSubscription}
               className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
-                channel.isSubscribed ? "border border-slate-300 text-slate-700" : "bg-sky-600 text-white"
+                channel.isSubscribed ? "border border-slate-300 text-slate-700" : "bg-red-600 text-white"
               }`}
             >
               {channel.isSubscribed ? "Subscribed" : "Follow"}

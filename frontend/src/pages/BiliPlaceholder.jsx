@@ -37,7 +37,7 @@ export default function BiliPlaceholder() {
 
   return (
     <div className="space-y-5">
-      <div className="rounded-2xl border border-slate-200 bg-white/90 p-5 shadow-[0_6px_24px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-none">
+      <div className="rounded-2xl border-2 border-red-200 bg-white/95 p-5 shadow-[0_8px_32px_rgba(220,38,38,0.08)] dark:border-slate-800 dark:bg-black/60 dark:shadow-none">
         <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">{meta.title}</h1>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{meta.description}</p>
       </div>

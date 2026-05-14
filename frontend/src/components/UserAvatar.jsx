@@ -5,6 +5,7 @@ export default function UserAvatar({ src, name = "User", size = "md" }) {
     sm: "h-8 w-8",
     md: "h-10 w-10",
     lg: "h-12 w-12",
+    xl: "h-32 w-32",
   }[size];
 
   if (src) {
@@ -18,7 +19,7 @@ export default function UserAvatar({ src, name = "User", size = "md" }) {
   }
 
   return (
-    <div className={`${sizeClass} rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-xs font-semibold dark:bg-slate-700 dark:text-slate-200`}>
+    <div className={`${sizeClass} rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-xs font-semibold dark:bg-slate-800 dark:text-slate-200 ${size === 'xl' && 'text-5xl'}`}>
       {getInitials(name)}
     </div>
   );

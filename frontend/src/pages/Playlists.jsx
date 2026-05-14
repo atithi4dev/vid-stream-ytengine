@@ -7,14 +7,15 @@ import {
   getUserPlaylists,
   removeVideoFromPlaylist,
 } from "../api/playlist.api";
-import { useAuth } from "../context/AuthContext";
+import { useAuthStore } from "../stores/authStore";
 import EmptyState from "../components/EmptyState";
 import LoadingState from "../components/LoadingState";
 import { formatViews } from "../utils/format";
 import { getOwnVideos as fetchOwnVideos } from "../api/video.api";
 
 export default function Playlists() {
-  const { userId } = useAuth();
+  const { user } = useAuthStore();
+  const userId = user?._id;
   const [playlists, setPlaylists] = useState([]);
   const [selectedPlaylist, setSelectedPlaylist] = useState(null);
   const [ownVideos, setOwnVideos] = useState([]);
@@ -99,8 +100,8 @@ export default function Playlists() {
 
   return (
     <div className="grid gap-6 lg:grid-cols-[340px_minmax(0,1fr)]">
-      <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5">
-        <h1 className="text-lg font-semibold text-slate-800">My Playlists</h1>
+      <section className="space-y-4 rounded-2xl border-2 border-red-200 bg-white/95 p-5 shadow-[0_8px_32px_rgba(220,38,38,0.08)] dark:border-slate-800 dark:bg-black/60 dark:shadow-none">
+        <h1 className="text-lg font-bold text-red-700 dark:text-red-400">My Playlists</h1>
         <form onSubmit={handleCreate} className="space-y-2">
           <input
             value={name}
@@ -115,7 +116,7 @@ export default function Playlists() {
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
             rows={3}
           />
-          <button className="rounded-lg bg-sky-600 px-3 py-2 text-sm font-medium text-white">Create Playlist</button>
+          <button className="rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white">Create Playlist</button>
         </form>
 
         <div className="space-y-2">
@@ -123,7 +124,7 @@ export default function Playlists() {
             <button
               key={playlist._id}
               onClick={() => refreshSelected(playlist._id)}
-              className="flex w-full items-center justify-between rounded-lg border border-slate-200 p-3 text-left hover:bg-slate-50"
+              className="flex w-full items-center justify-between rounded-lg border-2 border-red-100 bg-red-50 p-3 text-left hover:bg-red-100 dark:border-slate-800 dark:bg-black/50 dark:hover:bg-black/60"
             >
               <div>
                 <p className="text-sm font-semibold text-slate-700">{playlist.name}</p>
@@ -143,13 +144,13 @@ export default function Playlists() {
         </div>
       </section>
 
-      <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5">
+      <section className="space-y-4 rounded-2xl border-2 border-red-200 bg-white/95 p-5 shadow-[0_8px_32px_rgba(220,38,38,0.08)] dark:border-slate-800 dark:bg-black/60 dark:shadow-none">
         {!selectedPlaylist ? (
           <EmptyState title="Select a playlist" subtitle="Create or choose a playlist to manage videos." />
         ) : (
           <>
             <div>
-              <h2 className="text-lg font-semibold text-slate-800">{selectedPlaylist.name}</h2>
+              <h2 className="text-lg font-bold text-red-700 dark:text-red-400">{selectedPlaylist.name}</h2>
               <p className="text-sm text-slate-500">{selectedPlaylist.description}</p>
             </div>
 
@@ -175,7 +176,7 @@ export default function Playlists() {
               {ownVideos.map((video) => (
                 <div key={video._id} className="flex items-center justify-between rounded-lg border border-slate-200 p-3">
                   <p className="text-sm text-slate-700">{video.title}</p>
-                  <button onClick={() => handleAddVideo(video._id)} className="text-xs text-sky-600">Add</button>
+                  <button onClick={() => handleAddVideo(video._id)} className="text-xs text-red-600">Add</button>
                 </div>
               ))}
             </div>

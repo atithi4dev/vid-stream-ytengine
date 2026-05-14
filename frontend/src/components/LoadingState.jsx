@@ -2,14 +2,14 @@ export default function LoadingState({ label = "Loading...", variant = "default"
   if (variant === "dashboard") {
     return (
       <div className="space-y-5 animate-pulse">
-        <div className="h-8 w-56 rounded bg-slate-200 dark:bg-slate-700" />
+        <div className="h-8 w-56 rounded bg-slate-200 dark:bg-slate-800" />
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           {Array.from({ length: 4 }).map((_, idx) => (
-            <div key={idx} className="h-24 rounded-2xl border border-slate-200 bg-white/80 dark:border-slate-700 dark:bg-slate-900/80" />
+            <div key={idx} className="h-24 rounded-2xl border border-slate-200 bg-white/80 dark:border-slate-800 dark:bg-black/60" />
           ))}
         </div>
-        <div className="h-72 rounded-2xl border border-slate-200 bg-white/80 dark:border-slate-700 dark:bg-slate-900/80" />
-        <div className="h-56 rounded-2xl border border-slate-200 bg-white/80 dark:border-slate-700 dark:bg-slate-900/80" />
+        <div className="h-72 rounded-2xl border border-slate-200 bg-white/80 dark:border-slate-800 dark:bg-black/60" />
+        <div className="h-56 rounded-2xl border border-slate-200 bg-white/80 dark:border-slate-800 dark:bg-black/60" />
       </div>
     );
   }
@@ -17,17 +17,17 @@ export default function LoadingState({ label = "Loading...", variant = "default"
   if (variant === "split") {
     return (
       <div className="grid gap-6 animate-pulse lg:grid-cols-[340px_minmax(0,1fr)]">
-        <div className="space-y-3 rounded-2xl border border-slate-200 bg-white/80 p-4 dark:border-slate-700 dark:bg-slate-900/80">
-          <div className="h-6 w-40 rounded bg-slate-200 dark:bg-slate-700" />
+        <div className="space-y-3 rounded-2xl border border-slate-200 bg-white/80 p-4 dark:border-slate-800 dark:bg-black/60">
+          <div className="h-6 w-40 rounded bg-slate-200 dark:bg-slate-800" />
           <div className="h-10 rounded bg-slate-100 dark:bg-slate-800" />
           <div className="h-20 rounded bg-slate-100 dark:bg-slate-800" />
-          <div className="h-10 w-36 rounded bg-slate-200 dark:bg-slate-700" />
+          <div className="h-10 w-36 rounded bg-slate-200 dark:bg-slate-800" />
           {Array.from({ length: 4 }).map((_, idx) => (
             <div key={idx} className="h-16 rounded bg-slate-100 dark:bg-slate-800" />
           ))}
         </div>
-        <div className="space-y-3 rounded-2xl border border-slate-200 bg-white/80 p-4 dark:border-slate-700 dark:bg-slate-900/80">
-          <div className="h-6 w-52 rounded bg-slate-200 dark:bg-slate-700" />
+        <div className="space-y-3 rounded-2xl border border-slate-200 bg-white/80 p-4 dark:border-slate-800 dark:bg-black/60">
+          <div className="h-6 w-52 rounded bg-slate-200 dark:bg-slate-800" />
           {Array.from({ length: 6 }).map((_, idx) => (
             <div key={idx} className="h-14 rounded bg-slate-100 dark:bg-slate-800" />
           ))}
@@ -40,22 +40,22 @@ export default function LoadingState({ label = "Loading...", variant = "default"
     return (
       <div className="mx-auto grid max-w-[1600px] animate-pulse gap-5 xl:grid-cols-[minmax(0,860px)_minmax(340px,1fr)] 2xl:grid-cols-[minmax(0,920px)_420px]">
         <section className="space-y-4">
-          <div className="aspect-video w-full rounded-2xl border border-slate-200 bg-slate-200/80 dark:border-slate-700 dark:bg-slate-800/80" />
-          <div className="h-10 rounded-xl border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-800" />
-          <div className="space-y-3 rounded-2xl border border-slate-200 bg-white/90 p-5 dark:border-slate-700 dark:bg-slate-900/80">
-            <div className="h-6 w-3/4 rounded bg-slate-200 dark:bg-slate-700" />
-            <div className="h-4 w-1/3 rounded bg-slate-200 dark:bg-slate-700" />
+          <div className="aspect-video w-full rounded-2xl border border-slate-200 bg-slate-200/80 dark:border-slate-800 dark:bg-black/40" />
+          <div className="h-10 rounded-xl border border-slate-200 bg-slate-100 dark:border-slate-800 dark:bg-black/50" />
+          <div className="space-y-3 rounded-2xl border border-slate-200 bg-white/90 p-5 dark:border-slate-800 dark:bg-black/60">
+            <div className="h-6 w-3/4 rounded bg-slate-200 dark:bg-slate-800" />
+            <div className="h-4 w-1/3 rounded bg-slate-200 dark:bg-slate-800" />
             <div className="h-16 rounded-lg bg-slate-100 dark:bg-slate-800" />
           </div>
-          <div className="space-y-3 rounded-2xl border border-slate-200 bg-white/90 p-5 dark:border-slate-700 dark:bg-slate-900/80">
-            <div className="h-5 w-1/4 rounded bg-slate-200 dark:bg-slate-700" />
+          <div className="space-y-3 rounded-2xl border border-slate-200 bg-white/90 p-5 dark:border-slate-800 dark:bg-black/60">
+            <div className="h-5 w-1/4 rounded bg-slate-200 dark:bg-slate-800" />
             <div className="h-20 rounded-xl bg-slate-100 dark:bg-slate-800" />
             <div className="h-16 rounded-xl bg-slate-100 dark:bg-slate-800" />
           </div>
         </section>
 
         <aside className="space-y-3">
-          <div className="h-20 rounded-xl border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-800" />
+          <div className="h-20 rounded-xl border border-slate-200 bg-slate-100 dark:border-slate-800 dark:bg-black/50" />
           {Array.from({ length: 6 }).map((_, idx) => (
             <div key={idx} className="h-24 rounded-xl border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-800" />
           ))}

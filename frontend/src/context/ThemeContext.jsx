@@ -3,7 +3,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 const ThemeContext = createContext(null);
 
 const getInitialTheme = () => {
-  const saved = localStorage.getItem("billo-theme");
+  const saved = localStorage.getItem("Youtube-theme");
   if (saved === "light" || saved === "dark") return saved;
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 };
@@ -14,7 +14,7 @@ export function ThemeProvider({ children }) {
   useEffect(() => {
     const root = document.documentElement;
     root.classList.toggle("dark", theme === "dark");
-    localStorage.setItem("billo-theme", theme);
+    localStorage.setItem("Youtube-theme", theme);
   }, [theme]);
 
   const value = useMemo(

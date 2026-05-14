@@ -8,8 +8,6 @@ import {
   FaStar,
   FaShareAlt,
   FaTv,
-  FaSlidersH,
-  FaVolumeUp,
 } from "react-icons/fa";
 import {
   addComment,
@@ -21,24 +19,23 @@ import {
   toggleVideoLike,
 } from "../api";
 import VideoCard from "../components/VideoCard";
+import VideoPlayer from "../components/VideoPlayer";
 import LoadingState from "../components/LoadingState";
 import EmptyState from "../components/EmptyState";
 import UserAvatar from "../components/UserAvatar";
 import { formatDate, formatViews } from "../utils/format";
-import { useAuth } from "../context/AuthContext";
+import { useAuthStore } from "../stores/authStore";
 
 export default function Watch() {
   const { videoId } = useParams();
   const location = useLocation();
   const playerShellRef = useRef(null);
-  const videoRef = useRef(null);
   const leftPaneRef = useRef(null);
-  const settingsPanelRef = useRef(null);
-  const settingsButtonRef = useRef(null);
   const ambientContextRef = useRef(null);
   const ambientGainRef = useRef(null);
   const ambientNodesRef = useRef([]);
-  const { userId } = useAuth();
+  const { user } = useAuthStore();
+  const userId = user?._id;
   const isLiveMode = useMemo(() => {
     const byQuery = new URLSearchParams(location.search).get("mode") === "live";
     const byPath = location.pathname.startsWith("/live/");
@@ -51,12 +48,6 @@ export default function Watch() {
   const [commentText, setCommentText] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [videoOpacity, setVideoOpacity] = useState(100);
-  const [brightness, setBrightness] = useState(100);
-  const [playbackRate, setPlaybackRate] = useState(1);
-  const [muted, setMuted] = useState(true);
-  const [volume, setVolume] = useState(100);
-  const [showPlayerSettings, setShowPlayerSettings] = useState(false);
   const [musicBlocked, setMusicBlocked] = useState(false);
   const [musicOn, setMusicOn] = useState(true);
   const [liveMessages, setLiveMessages] = useState([
@@ -129,7 +120,10 @@ export default function Watch() {
       const fetchedVideo = videoRes?.data?.data;
       setVideo(fetchedVideo);
       setComments(commentsRes?.data?.data?.docs || []);
-      setRelated((relatedRes?.data?.data?.docs || []).filter((item) => item._id !== videoId));
+      
+      const relatedData = relatedRes?.data?.data || [];
+      const relatedArray = Array.isArray(relatedData) ? relatedData : (relatedData.docs || []);
+      setRelated(relatedArray.filter((item) => item._id !== videoId));
 
       if (fetchedVideo?.encodingStatus === "ready") {
         try {
@@ -168,78 +162,6 @@ export default function Watch() {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     leftPaneRef.current?.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [videoId]);
-
-  useEffect(() => {
-    const player = videoRef.current;
-    if (!player) return;
-    player.playbackRate = playbackRate;
-  }, [playbackRate]);
-
-  useEffect(() => {
-    const player = videoRef.current;
-    if (!player) return;
-    player.volume = Math.max(0, Math.min(1, volume / 100));
-    player.muted = muted;
-  }, [volume, muted]);
-
-  useEffect(() => {
-    const onKeyDown = (event) => {
-      const activeTag = document.activeElement?.tagName?.toLowerCase();
-      const isTyping = activeTag === "input" || activeTag === "textarea";
-      if (isTyping) return;
-
-      const player = videoRef.current;
-      if (!player) return;
-
-      if (event.code === "Space") {
-        event.preventDefault();
-        if (player.paused) {
-          player.play();
-        } else {
-          player.pause();
-        }
-      }
-
-      if (event.key === "ArrowRight") {
-        player.currentTime = Math.min(player.currentTime + 5, player.duration || player.currentTime + 5);
-      }
-
-      if (event.key === "ArrowLeft") {
-        player.currentTime = Math.max(player.currentTime - 5, 0);
-      }
-
-      if (event.key.toLowerCase() === "m") {
-        player.muted = !player.muted;
-        setMuted(player.muted);
-      }
-
-      if (event.key === "ArrowUp") {
-        event.preventDefault();
-        setVolume((prev) => Math.min(prev + 5, 100));
-        setMuted(false);
-      }
-
-      if (event.key === "ArrowDown") {
-        event.preventDefault();
-        setVolume((prev) => {
-          const next = Math.max(prev - 5, 0);
-          if (next === 0) setMuted(true);
-          return next;
-        });
-      }
-
-      if (event.key.toLowerCase() === "f") {
-        if (document.fullscreenElement) {
-          document.exitFullscreen?.();
-        } else {
-          playerShellRef.current?.requestFullscreen?.();
-        }
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
 
   useEffect(() => {
     if (!isLiveMode) return;
@@ -377,27 +299,6 @@ export default function Watch() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!showPlayerSettings) return;
-
-    const closeOnOutside = (event) => {
-      const panel = settingsPanelRef.current;
-      const button = settingsButtonRef.current;
-      const target = event.target;
-
-      if (panel?.contains(target) || button?.contains(target)) return;
-      setShowPlayerSettings(false);
-    };
-
-    document.addEventListener("mousedown", closeOnOutside);
-    document.addEventListener("touchstart", closeOnOutside);
-
-    return () => {
-      document.removeEventListener("mousedown", closeOnOutside);
-      document.removeEventListener("touchstart", closeOnOutside);
-    };
-  }, [showPlayerSettings]);
-
   const handleLike = async () => {
     if (!video) return;
     await toggleVideoLike(video._id);
@@ -436,33 +337,22 @@ export default function Watch() {
       >
         <div
           ref={playerShellRef}
-          className="relative overflow-hidden rounded-2xl border border-slate-200 bg-black dark:border-slate-700"
+          className="relative overflow-hidden rounded-2xl border-2 border-red-200 bg-black dark:border-slate-800"
         >
-          <video
-            ref={videoRef}
-            key={video._id}
-            src={video.videoFile}
-            controls
-            autoPlay
-            muted={muted}
-            playsInline
-            controlsList="nodownload noremoteplayback"
-            disablePictureInPicture
-            onContextMenu={(event) => event.preventDefault()}
-            poster={video.thumbnail}
-            className="aspect-video w-full"
-            style={{
-              opacity: videoOpacity / 100,
-              filter: `brightness(${brightness}%)`,
+          <VideoPlayer
+            video={video}
+            onTimeUpdate={(time) => {
+              // Handle time update if needed
             }}
+            className="w-full"
           />
 
           {isLiveMode && (
             <>
-              <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-t from-fuchsia-900/20 via-transparent to-sky-500/10" />
+              <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-t from-red-900/20 via-transparent to-red-500/10" />
 
               <div className="pointer-events-none absolute left-3 top-12 z-20 flex items-center gap-2 text-[10px] text-white">
-                <span className="live-neon rounded-full border border-cyan-300/60 bg-black/45 px-2 py-0.5">NEON STREET</span>
+                <span className="live-neon rounded-full border border-red-300/60 bg-black/45 px-2 py-0.5">NEON STREET</span>
                 <span className="rounded-full bg-black/45 px-2 py-0.5">Crowd {Math.round(crowdCount).toLocaleString()}</span>
               </div>
 
@@ -503,128 +393,28 @@ export default function Watch() {
               </div>
 
               <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 overflow-hidden border-t border-white/10 bg-black/45 py-1">
-                <p className="live-ticker whitespace-nowrap px-4 text-[11px] font-medium text-cyan-100">{streetTickerItems[tickerIndex]}</p>
+                <p className="live-ticker whitespace-nowrap px-4 text-[11px] font-medium text-red-100">{streetTickerItems[tickerIndex]}</p>
               </div>
             </>
           )}
-
-          <div className="pointer-events-none absolute right-3 top-3 z-20 flex flex-col items-end gap-2">
-            <button
-              ref={settingsButtonRef}
-              onClick={() => setShowPlayerSettings((prev) => !prev)}
-              className="pointer-events-auto rounded-full bg-black/60 p-2 text-white backdrop-blur hover:bg-black/75"
-              aria-label="Player settings"
-            >
-              <FaSlidersH className="text-sm" />
-            </button>
-
-            {showPlayerSettings && (
-              <div
-                ref={settingsPanelRef}
-                className="pointer-events-auto fixed right-3 top-20 z-[2147483647] w-44 overflow-y-auto overscroll-contain rounded-xl border border-white/20 bg-black/80 p-2.5 text-xs text-white shadow-xl backdrop-blur sm:absolute sm:right-0 sm:top-11 sm:z-30 sm:w-52 sm:p-3"
-                style={{ maxHeight: "min(calc(100% - 0.75rem), 340px)" }}
-              >
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="font-semibold">Player Settings</span>
-                  <button
-                    onClick={() => {
-                      setVideoOpacity(100);
-                      setBrightness(100);
-                      setPlaybackRate(1);
-                      setVolume(100);
-                      setMuted(false);
-                    }}
-                    className="text-[10px] text-slate-200 underline"
-                  >
-                    Reset
-                  </button>
-                </div>
-
-                <label className="mb-2 block">
-                  <div className="mb-1 flex items-center justify-between">
-                    <span className="flex items-center gap-1">
-                      <FaVolumeUp /> Volume
-                    </span>
-                    <span>{volume}%</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={volume}
-                    onChange={(event) => {
-                      const nextVolume = Number(event.target.value);
-                      setVolume(nextVolume);
-                      setMuted(nextVolume === 0);
-                    }}
-                    className="w-full"
-                  />
-                </label>
-
-                <label className="mb-2 block">
-                  <div className="mb-1 flex justify-between">
-                    <span>Speed</span>
-                    <span>{playbackRate.toFixed(2)}x</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="50"
-                    max="200"
-                    step="25"
-                    value={playbackRate * 100}
-                    onChange={(event) => setPlaybackRate(Number(event.target.value) / 100)}
-                    className="w-full"
-                  />
-                </label>
-
-                <label className="mb-2 block">
-                  <div className="mb-1 flex justify-between">
-                    <span>Opacity</span>
-                    <span>{videoOpacity}%</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="60"
-                    max="100"
-                    value={videoOpacity}
-                    onChange={(event) => setVideoOpacity(Number(event.target.value))}
-                    className="w-full"
-                  />
-                </label>
-
-                <label className="mb-2 block">
-                  <div className="mb-1 flex justify-between">
-                    <span>Brightness</span>
-                    <span>{brightness}%</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="60"
-                    max="140"
-                    value={brightness}
-                    onChange={(event) => setBrightness(Number(event.target.value))}
-                    className="w-full"
-                  />
-                </label>
-              </div>
-            )}
-          </div>
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-white/90 px-3 py-2 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-300">
+        <div className="rounded-xl border-2 border-red-200 bg-white/95 px-3 py-2 text-xs text-red-600 dark:border-slate-800 dark:bg-black/60 dark:text-red-400 font-medium">
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded bg-slate-100 px-2 py-1 dark:bg-slate-800">Space: Play/Pause</span>
-            <span className="rounded bg-slate-100 px-2 py-1 dark:bg-slate-800">←/→: Seek</span>
+            <span className="rounded bg-slate-100 px-2 py-1 dark:bg-slate-800">←/→: Seek 5s</span>
             <span className="rounded bg-slate-100 px-2 py-1 dark:bg-slate-800">↑/↓: Volume</span>
             <span className="rounded bg-slate-100 px-2 py-1 dark:bg-slate-800">M: Mute</span>
             <span className="rounded bg-slate-100 px-2 py-1 dark:bg-slate-800">F: Fullscreen</span>
+            <span className="rounded bg-slate-100 px-2 py-1 dark:bg-slate-800">B: Brightness</span>
+            <span className="rounded bg-slate-100 px-2 py-1 dark:bg-slate-800">O: Opacity</span>
           </div>
         </div>
 
         {isLiveMode && (
-          <div className="rounded-2xl border border-violet-200/70 bg-gradient-to-r from-violet-50 via-white to-cyan-50 p-4 dark:border-violet-800/60 dark:from-violet-950/40 dark:via-slate-900 dark:to-cyan-950/40">
+          <div className="rounded-2xl border border-red-200/70 bg-gradient-to-r from-red-50 via-white to-red-50 p-4 dark:border-red-800/60 dark:from-red-950/40 dark:via-slate-900 dark:to-red-950/40">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-violet-500 px-2.5 py-1 text-xs font-semibold text-white">LIVE EXPERIENCE</span>
+              <span className="rounded-full bg-red-600 px-2.5 py-1 text-xs font-semibold text-white">LIVE EXPERIENCE</span>
               <button
                 type="button"
                 onClick={() => setMusicOn((prev) => !prev)}
@@ -636,7 +426,7 @@ export default function Watch() {
                 <button
                   type="button"
                   onClick={() => setMusicOn(true)}
-                  className="rounded-full bg-sky-600 px-3 py-1 text-xs font-semibold text-white"
+                  className="rounded-full bg-red-600 px-3 py-1 text-xs font-semibold text-white"
                 >
                   Enable Music
                 </button>
@@ -646,94 +436,112 @@ export default function Watch() {
           </div>
         )}
 
-        <div className="space-y-3 rounded-2xl border border-slate-200 bg-white/90 p-5 shadow-[0_6px_24px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-none">
-          <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">{video.title}</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            {formatViews(video.views)} views • {formatDate(video.createdAt)}
-          </p>
+        {/* Video Info & Actions */}
+        <div className="space-y-4 rounded-2xl border-2 border-red-200 bg-white/95 p-6 shadow-[0_8px_32px_rgba(220,38,38,0.08)] dark:border-slate-800 dark:bg-black/60 dark:shadow-none">
+          {/* Title & Metadata */}
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2">{video.title}</h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400 flex gap-4">
+              <span>{formatViews(video.views)} views</span>
+              <span>•</span>
+              <span>{formatDate(video.createdAt)}</span>
+            </p>
+          </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3 dark:border-slate-700">
+          {/* Creator & Subscribe */}
+          <div className="flex items-center justify-between gap-4 border-t border-slate-200 pt-4 dark:border-slate-700">
             <div className="flex items-center gap-3">
-              <UserAvatar src={video.owner?.avatar} name={video.owner?.userName} />
+              <UserAvatar src={video.owner?.avatar} name={video.owner?.userName} size="md" />
               <div>
-                <p className="font-semibold text-slate-800 dark:text-slate-100">{video.owner?.userName}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Creator</p>
+                <p className="font-bold text-slate-900 dark:text-slate-100">{video.owner?.userName}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wide">Creator</p>
               </div>
-              {String(video.owner?._id) !== String(userId) && (
-                <button
-                  onClick={handleSubscribe}
-                  className={`rounded-lg px-4 py-2 text-sm font-semibold ${
-                    video.isOwnerSubscribed ? "border border-slate-300 text-slate-700 dark:border-slate-700 dark:text-slate-200" : "bg-sky-600 text-white"
-                  }`}
-                >
-                  {video.isOwnerSubscribed ? "Following" : "Follow"}
-                </button>
-              )}
             </div>
-
-            <div className="flex items-center gap-2">
+            {String(video.owner?._id) !== String(userId) && (
               <button
-                onClick={handleLike}
-                className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 dark:border-slate-700 dark:text-slate-200"
+                onClick={handleSubscribe}
+                className={`rounded-xl px-6 py-2.5 font-bold text-sm transition ${
+                  video.isOwnerSubscribed
+                    ? "border-2 border-slate-300 text-slate-700 dark:border-slate-700 dark:text-slate-200"
+                    : "bg-red-600 text-white hover:bg-red-700"
+                }`}
               >
-                {video.isLikedByUser ? <FaHeart className="text-red-500" /> : <FaRegHeart />}
-                {video.likeCount || 0}
+                {video.isOwnerSubscribed ? "Following" : "Follow"}
               </button>
-              <button className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 dark:border-slate-700 dark:text-slate-200">
-                <FaCoins /> Coin
-              </button>
-              <button className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 dark:border-slate-700 dark:text-slate-200">
-                <FaStar /> Favorite
-              </button>
-              <button className="hidden items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 dark:border-slate-700 dark:text-slate-200 sm:flex">
-                <FaShareAlt /> Share
-              </button>
-              <button className="hidden items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 dark:border-slate-700 dark:text-slate-200 sm:flex">
-                <FaTv /> Mini Player
-              </button>
-              <div className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 dark:border-slate-700 dark:text-slate-200">
-                <FaRegCommentDots />
-                {comments.length}
-              </div>
+            )}
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 pt-4 dark:border-slate-700">
+            <button
+              onClick={handleLike}
+              className="flex items-center gap-2 rounded-xl border-2 border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:border-red-300 hover:bg-red-50 transition dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+            >
+              {video.isLikedByUser ? <FaHeart className="text-lg text-red-600" /> : <FaRegHeart className="text-lg" />}
+              <span>{video.likeCount || 0}</span>
+            </button>
+            <button className="flex items-center gap-2 rounded-xl border-2 border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:border-yellow-300 hover:bg-yellow-50 transition dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
+              <FaCoins className="text-lg" />
+              <span>Coin</span>
+            </button>
+            <button className="flex items-center gap-2 rounded-xl border-2 border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:border-purple-300 hover:bg-purple-50 transition dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
+              <FaStar className="text-lg" />
+              <span>Favorite</span>
+            </button>
+            <button className="flex items-center gap-2 rounded-xl border-2 border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:border-blue-300 hover:bg-blue-50 transition dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
+              <FaShareAlt className="text-lg" />
+              <span className="hidden sm:inline">Share</span>
+            </button>
+            <div className="ml-auto flex items-center gap-2 rounded-xl border-2 border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:text-slate-200">
+              <FaRegCommentDots className="text-lg" />
+              <span>{comments.length}</span>
             </div>
           </div>
 
-          <p className="rounded-lg bg-slate-50 px-4 py-3 text-sm leading-relaxed text-slate-700 dark:bg-slate-800 dark:text-slate-300">{video.description}</p>
+          {/* Description */}
+          <div className="border-t border-slate-200 pt-4 dark:border-slate-700">
+            <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-300">{video.description}</p>
+          </div>
         </div>
 
         {!isLiveMode && (
-        <section className="space-y-3 rounded-2xl border border-slate-200 bg-white/90 p-5 shadow-[0_6px_24px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-none">
-          <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Comments ({comments.length})</h2>
+        <section className="space-y-4 rounded-2xl border-2 border-red-200 bg-white/95 p-6 shadow-[0_8px_32px_rgba(220,38,38,0.08)] dark:border-slate-800 dark:bg-black/60 dark:shadow-none">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Comments</h2>
+            <span className="rounded-full bg-red-100 px-3 py-1 text-sm font-semibold text-red-700 dark:bg-red-950/30 dark:text-red-400">{comments.length}</span>
+          </div>
 
-          <form onSubmit={handleComment} className="space-y-2">
+          <form onSubmit={handleComment} className="space-y-3 border-b border-slate-200 pb-4 dark:border-slate-700">
             <textarea
               value={commentText}
               onChange={(event) => setCommentText(event.target.value)}
               rows={3}
-              placeholder="Share your thoughts"
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-sky-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              placeholder="Share your thoughts on this video..."
+              className="w-full rounded-xl border-2 border-slate-300 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-red-600 dark:focus:ring-red-900/30"
             />
             <div className="flex justify-end">
               <button
                 type="submit"
-                className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:bg-slate-400"
+                className="rounded-xl bg-red-600 px-6 py-2.5 text-sm font-bold text-white hover:bg-red-700 transition disabled:bg-slate-400 disabled:cursor-not-allowed"
                 disabled={!commentText.trim()}
               >
-                Comment
+                Post Comment
               </button>
             </div>
           </form>
 
           <div className="space-y-4">
             {comments.length === 0 ? (
-              <p className="text-sm text-slate-500 dark:text-slate-400">No comments yet.</p>
+              <div className="rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 py-8 text-center dark:border-slate-700 dark:bg-slate-900/30">
+                <p className="text-sm text-slate-500 dark:text-slate-400">No comments yet. Be the first to share your thoughts!</p>
+              </div>
             ) : (
               comments.map((comment) => (
-                <div key={comment._id} className="flex gap-3 rounded-xl border border-slate-100 p-3 dark:border-slate-700">
+                <div key={comment._id} className="flex gap-3 rounded-xl border-2 border-slate-200 bg-slate-50 p-4 transition hover:border-red-200 hover:bg-red-50 dark:border-slate-700 dark:bg-slate-900/30 dark:hover:border-red-700 dark:hover:bg-slate-900/50">
                   <UserAvatar src={comment.owner?.avatar} name={comment.owner?.userName || "User"} size="sm" />
-                  <div>
-                    <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">{comment.owner?.userName || "User"}</p>
-                    <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{comment.content}</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-slate-900 dark:text-slate-100">{comment.owner?.userName || "User"}</p>
+                    <p className="mt-1.5 text-sm leading-relaxed text-slate-700 dark:text-slate-300">{comment.content}</p>
                   </div>
                 </div>
               ))
@@ -745,16 +553,16 @@ export default function Watch() {
 
       <aside className="space-y-3 md:col-span-4 md:h-full md:overflow-hidden md:pt-0 lg:col-span-4 xl:col-span-4">
         {isLiveMode && (
-          <div className="rounded-xl border border-violet-200/70 bg-white/90 p-3 dark:border-violet-800/60 dark:bg-slate-900/80 md:h-[58%] md:min-h-[360px] md:max-h-[620px] md:flex md:flex-col">
+          <div className="rounded-xl border border-red-200/70 bg-white/90 p-3 dark:border-red-800/60 dark:bg-slate-900/80 md:h-[58%] md:min-h-[360px] md:max-h-[620px] md:flex md:flex-col">
             <div className="mb-2 flex items-center justify-between">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-violet-600 dark:text-violet-300">Live Chat Arena</h2>
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-red-600 dark:text-red-400">Live Chat Arena</h2>
               <span className="rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-semibold text-white">LIVE</span>
             </div>
 
             <div className="mb-3 space-y-2 overflow-y-auto rounded-lg bg-slate-50 p-2 thin-scrollbar dark:bg-slate-800/60 md:min-h-0 md:flex-1">
               {liveMessages.map((item) => (
                 <div key={item.id} className="rounded-lg bg-white px-2 py-1.5 text-xs dark:bg-slate-900/75">
-                  <span className="font-semibold text-sky-600 dark:text-sky-300">{item.user}: </span>
+                  <span className="font-semibold text-red-600 dark:text-red-400">{item.user}: </span>
                   <span className="text-slate-700 dark:text-slate-200">{item.text}</span>
                 </div>
               ))}
@@ -808,12 +616,12 @@ export default function Watch() {
                   }
                 }}
                 placeholder="Say something in live chat"
-                className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-700 outline-none focus:border-sky-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-700 outline-none focus:border-red-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
               />
               <button
                 type="button"
                 onClick={sendLiveMessage}
-                className="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-700"
+                className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700"
               >
                 Send
               </button>
@@ -832,7 +640,7 @@ export default function Watch() {
               </div>
             </div>
 
-            <div className="mt-3 rounded-lg border border-slate-200 bg-white/70 p-2 text-[11px] text-slate-600 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-300">
+            <div className="mt-3 rounded-lg border-2 border-red-100 bg-red-50 p-2 text-[11px] text-red-700 dark:border-slate-800 dark:bg-black/50 dark:text-red-400 font-medium">
               <p className="font-semibold">Street Stall Menu</p>
               <p className="mt-1">🍜 Neon Ramen · 🌮 Fire Taco · 🍢 Grill Skewer · 🧋 Bubble Tea</p>
             </div>
@@ -840,18 +648,18 @@ export default function Watch() {
         )}
 
         {!isLiveMode && (
-        <div className="rounded-xl border border-slate-200 bg-white/90 p-3 dark:border-slate-700 dark:bg-slate-900/80">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Ranking Today</h2>
-          <ul className="mt-2 space-y-2 text-sm text-slate-700 dark:text-slate-200">
-            {["Top Animated Clips", "Hot Gaming Uploads", "Music Covers", "Tech Reviews"].map((item) => (
-              <li key={item} className="rounded-lg bg-slate-50 px-2 py-1.5 dark:bg-slate-800">{item}</li>
+        <div className="rounded-xl border-2 border-red-200 bg-white/95 p-3 dark:border-slate-800 dark:bg-black/60">
+          <h3 className="font-bold text-slate-900 dark:text-slate-100 mb-3">Video Categories</h3>
+          <ul className="space-y-2 text-sm text-slate-700 dark:text-slate-200">
+            {["Popular", "Latest Uploads", "Trending Now", "Top Rated"].map((item) => (
+              <li key={item} className="rounded-lg border border-slate-300 bg-white px-3 py-2 hover:border-red-300 hover:bg-red-50 transition dark:border-slate-700 dark:bg-slate-900/50 dark:hover:border-red-700 dark:hover:bg-slate-900/70 cursor-pointer">{item}</li>
             ))}
           </ul>
         </div>
         )}
 
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-          {isLiveMode ? "Other Live Videos" : "Up Next"}
+        <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100">
+          {isLiveMode ? "Other Live Streams" : "Recommended Videos"}
         </h2>
         <div className="thin-scrollbar space-y-3 md:max-h-[calc(100%-155px)] md:overflow-y-auto md:pr-1">
           {related.map((item) => (
@@ -859,7 +667,7 @@ export default function Watch() {
               <Link
                 key={item._id}
                 to={`/live/${item._id}`}
-                className="group flex gap-2.5 rounded-xl border border-slate-200/80 bg-white/90 p-2.5 shadow-[0_6px_24px_rgba(15,23,42,0.04)] transition hover:-translate-y-0.5 hover:shadow-[0_10px_28px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-none"
+                className="group flex gap-2.5 rounded-xl border-2 border-red-200 bg-white/95 p-2.5 shadow-[0_8px_32px_rgba(220,38,38,0.08)] transition hover:-translate-y-1 hover:shadow-[0_12px_40px_rgba(220,38,38,0.12)] dark:border-slate-800 dark:bg-black/60 dark:shadow-none dark:hover:border-red-700"
               >
                 <img src={item.thumbnail} alt={item.title} className="h-20 w-32 rounded-lg object-cover sm:h-24 sm:w-40" />
                 <div className="min-w-0">

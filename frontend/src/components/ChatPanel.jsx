@@ -121,7 +121,7 @@ export default function ChatPanel({ className = "", onClose }) {
           onClick={() => setMobileView("list")}
           className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
             mobileView === "list"
-              ? "bg-sky-600 text-white"
+              ? "bg-red-600 text-white"
               : "border border-slate-300 text-slate-600 dark:border-slate-700 dark:text-slate-300"
           }`}
         >
@@ -131,7 +131,7 @@ export default function ChatPanel({ className = "", onClose }) {
           onClick={() => setMobileView("chat")}
           className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
             mobileView === "chat"
-              ? "bg-sky-600 text-white"
+              ? "bg-red-600 text-white"
               : "border border-slate-300 text-slate-600 dark:border-slate-700 dark:text-slate-300"
           }`}
         >
@@ -164,7 +164,7 @@ export default function ChatPanel({ className = "", onClose }) {
               setTimeout(() => setShowSuggestions(false), 120);
             }}
             placeholder="Search chats..."
-            className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 outline-none focus:border-sky-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+            className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 outline-none focus:border-red-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
           />
 
           {showSuggestions && search.trim() && (
@@ -199,7 +199,7 @@ export default function ChatPanel({ className = "", onClose }) {
                 handleSelectChat(chat.id);
               }}
               className={`flex w-full items-start gap-3 rounded-xl px-3 py-2 text-left transition ${
-                chat.id === selectedChat.id ? "bg-sky-50 dark:bg-sky-900/30" : "hover:bg-slate-50 dark:hover:bg-slate-800"
+                chat.id === selectedChat.id ? "bg-red-50 dark:bg-red-900/30" : "hover:bg-slate-50 dark:hover:bg-slate-800"
               }`}
             >
               <div className="relative">
@@ -214,7 +214,7 @@ export default function ChatPanel({ className = "", onClose }) {
                 <p className="truncate text-xs text-slate-500 dark:text-slate-400">{chat.lastMessage}</p>
               </div>
               {chat.unread > 0 && (
-                <span className="rounded-full bg-sky-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">{chat.unread}</span>
+                <span className="rounded-full bg-red-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">{chat.unread}</span>
               )}
             </button>
           ))}
@@ -242,12 +242,12 @@ export default function ChatPanel({ className = "", onClose }) {
               <div
                 className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${
                   message.fromMe
-                    ? "bg-sky-600 text-white rounded-br-md"
+                    ? "bg-red-600 text-white rounded-br-md"
                     : "bg-slate-100 text-slate-700 rounded-bl-md dark:bg-slate-800 dark:text-slate-200"
                 }`}
               >
                 <p>{message.text}</p>
-                <p className={`mt-1 text-[10px] ${message.fromMe ? "text-sky-100" : "text-slate-400 dark:text-slate-500"}`}>{message.time}</p>
+                <p className={`mt-1 text-[10px] ${message.fromMe ? "text-red-100" : "text-slate-400 dark:text-slate-500"}`}>{message.time}</p>
               </div>
             </div>
           ))}
@@ -338,11 +338,11 @@ export default function ChatPanel({ className = "", onClose }) {
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
               placeholder="Type a message..."
-              className="h-10 min-w-0 flex-1 rounded-full border border-slate-300 px-4 text-sm outline-none focus:border-sky-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              className="h-10 min-w-0 flex-1 rounded-full border border-slate-300 px-4 text-sm outline-none focus:border-red-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
             />
             <button
               type="submit"
-              className="h-10 rounded-full bg-sky-600 px-4 text-sm font-semibold text-white disabled:bg-slate-300"
+              className="h-10 rounded-full bg-red-600 px-4 text-sm font-semibold text-white disabled:bg-slate-300"
               disabled={!draft.trim()}
             >
               Send

@@ -9,6 +9,15 @@ const api = axios.create({
     withCredentials: true,
 });
 
+// Request interceptor to log requests
+api.interceptors.request.use(
+    (config) => {
+        console.log("📤 Request:", config.url, "withCredentials:", config.withCredentials);
+        return config;
+    },
+    (error) => Promise.reject(error)
+);
+
 api.interceptors.response.use(
     (response) => response,
     async (error) => {

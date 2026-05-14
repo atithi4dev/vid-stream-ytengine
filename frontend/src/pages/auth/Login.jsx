@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { loginUser, getCurrentUser } from "../../api/auth.api";
-import { useAuth } from "../../context/AuthContext";
+import { useAuthStore } from "../../stores/authStore";
 
 const Login = () => {
     const navigate = useNavigate();
-    const { setUser } = useAuth();
+    const { setUser } = useAuthStore();
 
     const [form, setForm] = useState({
         userName: "",
@@ -26,7 +26,15 @@ const Login = () => {
         setError("");
 
         try {
-            await loginUser(form);
+            const loginRes = await loginUser(form);
+            
+            // Save access token to localStorage for WebSocket auth
+            const accessToken = loginRes?.data?.data?.accessToken;
+            if (accessToken) {
+                localStorage.setItem("accessToken", accessToken);
+                console.log("✅ Access token saved");
+            }
+            
             const res = await getCurrentUser();
             setUser(res?.data?.data || null);
 
@@ -42,9 +50,9 @@ const Login = () => {
 
     return (
         <div className="min-h-screen grid lg:grid-cols-2 bg-slate-100 dark:bg-slate-950">
-            <div className="hidden lg:flex flex-col justify-center bg-gradient-to-br from-sky-600 to-indigo-600 p-12 text-white">
-                <h1 className="text-4xl font-bold">Welcome to Billo</h1>
-                <p className="mt-3 text-sky-100">Stream, publish, and grow your creator channel.</p>
+            <div className="hidden lg:flex flex-col justify-center bg-gradient-to-br from-red-600 to-red-700 p-12 text-white">
+                <h1 className="text-4xl font-bold">Welcome to Youtube</h1>
+                <p className="mt-3 text-red-100">Stream, publish, and grow your creator channel.</p>
             </div>
 
             <div className="flex items-center justify-center p-6">
@@ -57,24 +65,24 @@ const Login = () => {
                     placeholder="Username"
                     value={form.userName}
                     onChange={handleChange}
-                    className="w-full text-sm border border-slate-300 rounded-xl p-2.5 outline-none focus:border-sky-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
-                </input>
+                    className="w-full text-sm border border-slate-300 rounded-xl p-2.5 outline-none focus:border-red-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                ></input>
                 <input
                     type="email"
                     name="email"
                     placeholder="Email"
                     value={form.email}
                     onChange={handleChange}
-                    className="w-full text-sm border border-slate-300 rounded-xl p-2.5 outline-none focus:border-sky-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
-                </input>
+                    className="w-full text-sm border border-slate-300 rounded-xl p-2.5 outline-none focus:border-red-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                ></input>
                 <input
                     type="password"
                     name="password"
                     placeholder="Password"
                     value={form.password}
                     onChange={handleChange}
-                    className="w-full text-sm border border-slate-300 rounded-xl p-2.5 outline-none focus:border-sky-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
-                </input>
+                    className="w-full text-sm border border-slate-300 rounded-xl p-2.5 outline-none focus:border-red-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                />
 
                 {
                     error && (
@@ -84,12 +92,12 @@ const Login = () => {
                 <button
                     type="submit"
                     disabled={loading}
-                    className="w-full bg-sky-600 rounded-xl text-white p-2.5 font-semibold"
+                    className="w-full bg-red-600 rounded-xl text-white p-2.5 font-semibold hover:bg-red-700"
                 >
                     {loading ? "Logging in..." : "Login"}
                 </button>
                 <p className="text-center text-sm text-slate-500 dark:text-slate-400">
-                    New here? <Link className="text-sky-600 font-medium" to="/register">Create account</Link>
+                    New here? <Link className="text-red-600 font-medium hover:text-red-700" to="/register">Create account</Link>
                 </p>
             </form>
             </div>

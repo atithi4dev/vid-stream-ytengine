@@ -2,9 +2,13 @@ import { useMemo, useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDropzone } from "react-dropzone";
 import { getSignedUrls, verifyVideoUpload } from "../api";
+import { useUploadStore } from "../stores/uploadStore";
+import { initializeWebSocket } from "../services/websocket";
+import UploadQueue from "../components/UploadQueue";
 
 const Upload = () => {
   const navigate = useNavigate();
+  const { addToQueue } = useUploadStore();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [thumbnail, setThumbnail] = useState(null);
@@ -14,6 +18,17 @@ const Upload = () => {
   
   const abortControllerRef = useRef(null);
   const submissionInProgressRef = useRef(false);
+
+  // Initialize WebSocket on component mount
+  useEffect(() => {
+    // For testing: ensure token exists (set from login or use a test token)
+    if (!localStorage.getItem("accessToken")) {
+      // TODO: Remove this after testing - in production user must login first
+      console.warn("⚠️ No token found. WebSocket will require authentication from login.");
+    }
+    
+    initializeWebSocket();
+  }, []);
 
   const onDropVideo = (acceptedFiles) => {
     if (acceptedFiles?.[0]) setVideoFile(acceptedFiles[0]);
@@ -82,6 +97,15 @@ const Upload = () => {
         throw new Error("Failed to get signed URLs");
       }
 
+      // Add video to upload queue
+      console.log(`✅ Got videoId from backend: ${videoId}`);
+      addToQueue(videoId, {
+        title,
+        filename: videoFile.name,
+        thumbnail,
+      });
+      console.log(`✅ Added to upload queue: ${videoId}`);
+
       const videoUploadResponse = await fetch(videoUploadUrl, {
         method: "PUT",
         body: videoFile,
@@ -109,8 +133,6 @@ const Upload = () => {
       }
 
       await verifyVideoUpload(videoId);
-
-      navigate(`/watch/${videoId}`);
     } catch (uploadError) {
       if (!signal.aborted) {
         setError(uploadError?.response?.data?.message || uploadError.message || "Failed to upload video.");
@@ -141,7 +163,7 @@ const Upload = () => {
 
       <form
         onSubmit={handleSubmit}
-        className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-900/80"
+        className="space-y-5 rounded-2xl border-2 border-red-200 bg-white/95 p-6 shadow-[0_8px_32px_rgba(220,38,38,0.08)] dark:border-slate-800 dark:bg-black/60 dark:shadow-none"
       >
         <div className="grid gap-4 md:grid-cols-2">
           <label className="space-y-2 text-sm text-slate-600 dark:text-slate-300">
@@ -150,7 +172,7 @@ const Upload = () => {
               value={title}
               onChange={(event) => setTitle(event.target.value)}
               placeholder="Enter video title"
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-slate-800 outline-none focus:border-sky-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-slate-800 outline-none focus:border-red-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
             />
           </label>
 
@@ -160,7 +182,7 @@ const Upload = () => {
               value={description}
               onChange={(event) => setDescription(event.target.value)}
               placeholder="Enter video description"
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-slate-800 outline-none focus:border-sky-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-slate-800 outline-none focus:border-red-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
             />
           </label>
         </div>
@@ -190,11 +212,14 @@ const Upload = () => {
         <button
           type="submit"
           disabled={!canSubmit || submitting}
-          className="rounded-xl bg-sky-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+          className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-500 dark:hover:bg-blue-500"
         >
-          {submitting ? "Uploading..." : "Publish Video"}
+          {submitting ? "Uploading..." : "Upload"}
         </button>
       </form>
+
+      {/* Upload Queue Section */}
+      <UploadQueue />
     </div>
   )
 }
@@ -207,7 +232,7 @@ function DropzoneCard({ title, subtitle, file, dropzone }) {
       {...getRootProps()}
       className={`rounded-2xl border-2 border-dashed p-6 text-center transition ${
         isDragActive
-          ? "border-sky-400 bg-sky-50 dark:bg-sky-900/20"
+          ? "border-red-500 bg-red-50 dark:bg-red-900/20"
           : "border-slate-300 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/70"
       }`}
     >
