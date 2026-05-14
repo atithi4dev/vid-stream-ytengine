@@ -52,7 +52,7 @@ function toLiveStream(video, index, maxViews) {
 
 function LiveCardSkeleton() {
   return (
-    <div className="animate-pulse rounded-xl border border-slate-200/80 bg-white/90 p-2.5 shadow-[0_6px_24px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-none">
+    <div className="animate-pulse rounded-xl border-2 border-red-200 bg-white/90 p-2.5 shadow-[0_8px_24px_rgba(220,38,38,0.06)] dark:border-slate-800 dark:bg-black/60 dark:shadow-none">
       <div className="h-28 rounded-lg bg-slate-200 dark:bg-slate-800" />
       <div className="mt-2 h-3 w-4/5 rounded bg-slate-200 dark:bg-slate-800" />
       <div className="mt-2 h-3 w-2/5 rounded bg-slate-200 dark:bg-slate-800" />
@@ -83,7 +83,8 @@ export default function Live() {
       setError("");
 
       const response = await getPublishedVideos({ page: 1, limit: 28, sortBy: "createdAt", sortType: "desc" });
-      const docs = response?.data?.data?.docs || [];
+      const responseData = response?.data?.data || [];
+      const docs = Array.isArray(responseData) ? responseData : (responseData.docs || []);
       const maxViews = docs.reduce((max, item) => Math.max(max, Number(item?.views || 0)), 0);
       setStreams(docs.map((video, index) => toLiveStream(video, index, maxViews)));
     } catch {
@@ -181,12 +182,12 @@ export default function Live() {
 
   return (
     <div className="space-y-4">
-      <section className="rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-[0_6px_24px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-none">
+      <section className="rounded-2xl border-2 border-red-200 bg-white/95 p-4 shadow-[0_8px_32px_rgba(220,38,38,0.08)] dark:border-slate-800 dark:bg-black/60 dark:shadow-none">
         <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Live Center</h1>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Bilibili-style live streaming hub with categories, stream cards, and events.</p>
       </section>
 
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white/90 dark:border-slate-700 dark:bg-slate-900/80">
+      <section className="overflow-hidden rounded-2xl border-2 border-red-200 bg-white/95 dark:border-slate-800 dark:bg-black/60">
         {loading ? (
           <div className="animate-pulse p-4">
             <div className="h-44 rounded-xl bg-slate-200 dark:bg-slate-800 sm:h-56" />
@@ -231,7 +232,7 @@ export default function Live() {
             key={item.key}
             type="button"
             onClick={() => setTimeline(item.key)}
-            className={`rounded-full border px-3 py-1.5 text-sm ${timeline === item.key ? "border-sky-500 bg-sky-500 text-white" : "border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"}`}
+            className={`rounded-full border px-3 py-1.5 text-sm ${timeline === item.key ? "border-red-500 bg-red-500 text-white" : "border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"}`}
           >
             {item.label}
           </button>
@@ -244,7 +245,7 @@ export default function Live() {
             key={item}
             type="button"
             onClick={() => setChip(item)}
-            className={`rounded-full border px-3 py-1.5 text-sm ${chip === item ? "border-slate-900 bg-slate-900 text-white dark:border-sky-500 dark:bg-sky-500" : "border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"}`}
+            className={`rounded-full border px-3 py-1.5 text-sm ${chip === item ? "border-slate-900 bg-slate-900 text-white dark:border-red-500 dark:bg-red-500" : "border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"}`}
           >
             {item}
           </button>
@@ -264,7 +265,7 @@ export default function Live() {
           ))}
         </section>
       ) : filteredStreams.length === 0 ? (
-        <div className="rounded-xl border border-slate-200 bg-white/90 px-4 py-5 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-400">
+        <div className="rounded-xl border-2 border-red-200 bg-white/95 px-4 py-5 text-sm text-slate-600 dark:border-slate-800 dark:bg-black/60 dark:text-slate-400">
           No streams available for this filter.
         </div>
       ) : (
@@ -273,7 +274,7 @@ export default function Live() {
             const viewerCount = stream.baseViewers + (viewerDelta[stream._id] || 0);
 
             return (
-              <article key={stream._id} className="group overflow-hidden rounded-xl border border-slate-200/80 bg-white/90 shadow-[0_6px_24px_rgba(15,23,42,0.04)] backdrop-blur transition hover:-translate-y-0.5 hover:shadow-[0_10px_28px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-none dark:hover:bg-slate-900">
+              <article key={stream._id} className="group overflow-hidden rounded-xl border-2 border-red-200 bg-white/95 shadow-[0_8px_32px_rgba(220,38,38,0.08)] backdrop-blur transition hover:-translate-y-1 hover:shadow-[0_12px_40px_rgba(220,38,38,0.12)] dark:border-slate-800 dark:bg-black/60 dark:shadow-none dark:hover:bg-black/70 dark:hover:border-red-700">
                 <Link to={`/live/${stream._id}`} className="relative block overflow-hidden bg-slate-100 dark:bg-slate-800">
                   <img src={stream.thumbnail} alt={stream.title} className="h-36 w-full object-cover transition duration-300 group-hover:scale-[1.02]" />
 
@@ -291,7 +292,7 @@ export default function Live() {
                 </Link>
 
                 <div className="space-y-1 p-2.5">
-                  <Link to={`/live/${stream._id}`} className="block truncate text-sm font-semibold text-slate-800 hover:text-sky-600 dark:text-slate-100 dark:hover:text-sky-300">
+                  <Link to={`/live/${stream._id}`} className="block truncate text-sm font-semibold text-slate-800 hover:text-red-600 dark:text-slate-100 dark:hover:text-red-400">
                     {stream.title}
                   </Link>
                   <p className="truncate text-xs text-slate-500 dark:text-slate-400">{stream.owner?.userName || "Unknown creator"}</p>
@@ -315,7 +316,7 @@ export default function Live() {
               container.scrollTo({ top: 0, behavior: "smooth" });
             }
           }}
-          className="fixed bottom-20 right-4 z-30 rounded-full bg-sky-600 px-3 py-2 text-xs font-semibold text-white shadow-lg hover:bg-sky-700 lg:bottom-6"
+          className="fixed bottom-20 right-4 z-30 rounded-full bg-red-600 px-3 py-2 text-xs font-semibold text-white shadow-lg hover:bg-red-700 lg:bottom-6"
         >
           Back to top
         </button>

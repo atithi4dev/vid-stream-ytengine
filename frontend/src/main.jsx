@@ -3,17 +3,15 @@ import ReactDOM from "react-dom/client";
 import App from "./App.jsx";
 import { BrowserRouter } from "react-router-dom";
 import "./index.css";
-import { AuthProvider } from "./context/AuthContext.jsx";
-import { ThemeProvider } from "./context/ThemeContext.jsx";
+import { useAuthStore } from "./stores/authStore.js";
+
+// Initialize auth on app load
+useAuthStore.getState().initializeAuth();
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <BrowserRouter>
     <React.StrictMode>
-      <ThemeProvider>
-        <AuthProvider>
-          <App />
-        </AuthProvider>
-      </ThemeProvider>
+      <App />
     </React.StrictMode>
   </BrowserRouter>
 );

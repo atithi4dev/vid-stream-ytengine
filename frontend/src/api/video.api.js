@@ -46,6 +46,10 @@ export const getOwnVideos = (params) => {
   return api.get("/videos", { params });
 };
 
+export const getPrivateVideos = (params) => {
+  return api.get("/videos/private", { params });
+};
+
 export const getAdaptiveStream = (videoId) => {
   return api.get(`/videos/stream/${videoId}/adaptive`);
 };

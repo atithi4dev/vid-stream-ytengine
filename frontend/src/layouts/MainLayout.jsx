@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Outlet, useLocation, useSearchParams } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
-import ChatPanel from "../components/ChatPanel";
+// import ChatPanel from "../components/ChatPanel"; // Chat feature disabled
 
 export default function MainLayout() {
   const location = useLocation();
@@ -12,39 +12,39 @@ export default function MainLayout() {
   const isPullingRef = useRef(false);
   const [pullDistance, setPullDistance] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const isChatOpen = searchParams.get("chat") === "open";
-  const isHomeRoute = location.pathname === "/";
+  // const isChatOpen = searchParams.get("chat") === "open"; // Chat feature disabled
+  // const isHomeRoute = location.pathname === "/"; // Chat feature disabled
   const pullThreshold = 72;
 
-  const openChat = () => {
-    const next = new URLSearchParams(searchParams);
-    next.set("chat", "open");
-    setSearchParams(next, { replace: true });
-  };
+  // const openChat = () => {
+  //   const next = new URLSearchParams(searchParams);
+  //   next.set("chat", "open");
+  //   setSearchParams(next, { replace: true });
+  // }; // Chat feature disabled
 
-  const closeChat = () => {
-    const next = new URLSearchParams(searchParams);
-    next.delete("chat");
-    setSearchParams(next, { replace: true });
-  };
+  // const closeChat = () => {
+  //   const next = new URLSearchParams(searchParams);
+  //   next.delete("chat");
+  //   setSearchParams(next, { replace: true });
+  // }; // Chat feature disabled
 
-  useEffect(() => {
-    const onKeyDown = (event) => {
-      const isCtrlM = (event.ctrlKey || event.metaKey) && event.key?.toLowerCase() === "m";
-      if (!isCtrlM) return;
-
-      const target = event.target;
-      const tagName = target?.tagName?.toLowerCase();
-      const isTypingField = tagName === "input" || tagName === "textarea" || target?.isContentEditable;
-      if (isTypingField) return;
-
-      event.preventDefault();
-      openChat();
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [searchParams, setSearchParams]);
+  // useEffect(() => {
+  //   const onKeyDown = (event) => {
+  //     const isCtrlM = (event.ctrlKey || event.metaKey) && event.key?.toLowerCase() === "m";
+  //     if (!isCtrlM) return;
+  //
+  //     const target = event.target;
+  //     const tagName = target?.tagName?.toLowerCase();
+  //     const isTypingField = tagName === "input" || tagName === "textarea" || target?.isContentEditable;
+  //     if (isTypingField) return;
+  //
+  //     event.preventDefault();
+  //     openChat();
+  //   };
+  //
+  //   window.addEventListener("keydown", onKeyDown);
+  //   return () => window.removeEventListener("keydown", onKeyDown);
+  // }, [searchParams, setSearchParams]); // Chat feature disabled
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
@@ -145,7 +145,7 @@ export default function MainLayout() {
             className={`pointer-events-none sticky top-0 z-20 -mt-1 mb-2 flex justify-center transition-opacity duration-150 lg:hidden ${(pullDistance > 0 || isRefreshing) ? "opacity-100" : "opacity-0"}`}
             style={{ height: `${pullDistance}px` }}
           >
-            <div className="h-8 rounded-full border border-slate-300 bg-white/95 px-3 text-xs font-medium text-slate-600 shadow dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-300 flex items-center">
+            <div className="h-8 rounded-full border border-slate-300 bg-white/95 px-3 text-xs font-medium text-slate-600 shadow dark:border-slate-800 dark:bg-black/95 dark:text-slate-200 flex items-center">
               {isRefreshing ? "Refreshing..." : pullDistance >= pullThreshold ? "Release to refresh" : "Pull to refresh"}
             </div>
           </div>
@@ -153,15 +153,17 @@ export default function MainLayout() {
         </main>
       </div>
 
+      {/* Chat feature disabled
       {isChatOpen && !isHomeRoute && (
         <>
           <div className="fixed inset-0 z-30 bg-black/30 backdrop-blur-[1px] lg:hidden" onClick={closeChat} />
 
-          <aside className="fixed right-0 top-16 bottom-16 z-40 w-full max-w-[560px] border-l border-slate-200 bg-white/95 p-3 shadow-2xl dark:border-slate-700 dark:bg-slate-950/95 lg:bottom-0 lg:w-[520px]">
+          <aside className="fixed right-0 top-16 bottom-16 z-40 w-full max-w-[560px] border-l border-slate-200 bg-white/95 p-3 shadow-2xl dark:border-slate-800 dark:bg-black/95 lg:bottom-0 lg:w-[520px]">
             <ChatPanel className="h-full min-h-0" onClose={closeChat} />
           </aside>
         </>
       )}
+      */}
     </div>
   );
 }

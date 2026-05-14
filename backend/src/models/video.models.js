@@ -47,9 +47,9 @@ const videoSchema = new Schema(
     hls: {
       masterUrl: String,
       resolutions: {
-        "1080p": { playlistUrl: String, count: Number, size: Number },
-        "720p": { playlistUrl: String, count: Number, size: Number },
-        "360p": { playlistUrl: String, count: Number, size: Number },
+        "1080p": { videoUrl: String, count: Number, size: Number },
+        "720p": { videoUrl: String, count: Number, size: Number },
+        "360p": { videoUrl: String, count: Number, size: Number },
       },
     },
     metaData: {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { getChannelStats, getChannelVideos, getTopVideosByTimeframes } from "../api/dashboard.api";
-import { useAuth } from "../context/AuthContext";
+import { useAuthStore } from "../stores/authStore";
 import { Line } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -32,7 +32,8 @@ export default function Dashboard() {
   const [timeframes, setTimeframes] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const { userId } = useAuth();
+  const { user } = useAuthStore();
+  const userId = user?._id;
 
   useEffect(() => {
     if (!userId) return;
@@ -50,6 +51,7 @@ export default function Dashboard() {
       setTimeframes(timeframeRes?.data?.data || {});
     } catch (err) {
       setError("Failed to load dashboard");
+      console.error("Dashboard error:", err);
     } finally {
       setLoading(false);
     }
@@ -168,7 +170,7 @@ export default function Dashboard() {
                         href={video.videoFile}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-blue-500 hover:underline text-xs"
+                        className="text-red-600 hover:underline text-xs"
                       >
                         Watch
                       </a>
@@ -187,7 +189,7 @@ export default function Dashboard() {
 // Stat Card Component
 function StatCard({ label, value }) {
   return (
-    <div className="bg-white/90 border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col items-center justify-center dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-none">
+    <div className="bg-white/95 border-2 border-red-200 rounded-2xl p-4 shadow-[0_8px_32px_rgba(220,38,38,0.08)] flex flex-col items-center justify-center dark:border-slate-800 dark:bg-black/60 dark:shadow-none">
       <p className="text-gray-500 text-sm dark:text-slate-400">{label}</p>
       <p className="text-2xl font-bold dark:text-slate-100">{value}</p>
     </div>

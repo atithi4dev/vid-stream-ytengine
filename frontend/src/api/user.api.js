@@ -4,17 +4,17 @@ export const updateAccountDetails = (data) => {
     return api.patch("/users/update-account", data);
 }
 
-export const updateAvatar = (formData) => {
-    return api.patch("/users/avatar", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+export const getProfileImageSignedUrl = (imageName, imageType, fileType) => {
+    return api.post("/users/upload-profile-image", {
+        imageName,
+        imageType,
+        fileType,
     });
 }
 
-export const updateCoverImage = (formData) => {
-    return api.patch("/users/cover-image", formData, {
-        headers: {
-            "Content-Type": "multipart/form-data"
-        }
+export const verifyProfileImageUpload = (imageType) => {
+    return api.patch("/users/confirm/upload-profile-image", {
+        imageType,
     });
 }
 
