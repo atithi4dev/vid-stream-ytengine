@@ -22,10 +22,6 @@ router.route("/register").post(
   registerUser
 );
 
-router.route("/upload-profile-image").post(profileImageSignedUrl);
-
-router.route("/confirm/upload-profile-image").patch(verifyProfileImageUpload)
-
 router.route("/login").post(loginUser);
 
 router.route("/refresh-token").post(refreshAccessToken);
@@ -35,6 +31,10 @@ router.route("/refresh-token").post(refreshAccessToken);
 router.route("/logout").post(verifyJwt, logoutUser);
 router.route("/change-password").post(verifyJwt, changeCurrentPassword)
 router.route("/current-user").get(verifyJwt, getCurrentUser)
+router.route("/upload-profile-image").post(verifyJwt, profileImageSignedUrl);
+
+router.route("/confirm/upload-profile-image").patch(verifyJwt, verifyProfileImageUpload)
+
 router.route("/c/:username").get(verifyJwt, getUserChannelProfile)
 router.route("/update-account").patch(verifyJwt, updateAccountDetails)
 

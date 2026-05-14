@@ -32,7 +32,6 @@
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "bcrypt": "^6.0.0",
     "bullmq": "^5.54.3",
-    "cloudinary": "^2.6.1",
     "compression": "^1.8.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",

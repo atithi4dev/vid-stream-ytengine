@@ -45,8 +45,8 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 
   let { userName, email, fullName, password } = req.body;
-  userName = userName.toLowerCase(); 
-  
+  userName = userName.toLowerCase();
+
   ["fullName", "userName", "email", "password"].forEach((field) => {
     if (!req.body[field]?.trim()) {
       throw new ApiError(400, `All fields are required.`);
@@ -77,8 +77,15 @@ const registerUser = asyncHandler(async (req, res) => {
     if (!createdUser) {
       throw new ApiError(500, "User creation failed");
     }
+
+    const { accessToken, refreshToken } = await generateAccessAndRefreshToken(
+      user._id
+    );
+
     return res
       .status(201)
+      .cookie("accessToken", accessToken, JWT_CONFIG.COOKIE_OPTIONS)
+      .cookie("refreshToken", refreshToken, JWT_CONFIG.COOKIE_OPTIONS)
       .json(new ApiResponse(201, createdUser, "User registered successfully"));
   } catch (error) {
     logger.error("User Creation Failed:", error);
@@ -337,7 +344,7 @@ const profileImageSignedUrl = asyncHandler(async (req, res) => {
       expiresIn: 60 * 5
     }
   )
-
+  
   const user = await User.findById(userId);
 
   if (imageType === "avatar") {

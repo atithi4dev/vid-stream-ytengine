@@ -220,6 +220,119 @@ const getAllPublishedVideos = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, result, "Videos fetched successfully"));
 });
 
+const getAllPrivateVideos = asyncHandler(async (req, res) => {
+  let { page = 1, limit = 10 } = req.query;
+  let { sortBy = "createdAt", sortType = "desc" } = req.query;
+
+  let allowedSortTypes = ["asc", "desc"];
+  let allowedSortByFields = ["createdat", "duration"];
+
+  const userId = req.user._id;
+
+  if (userId && !isValidObjectId(userId)) {
+    throw new ApiError(400, "User ID is required and must be a valid ObjectId");
+  }
+
+  page = parseInt(page);
+  limit = parseInt(limit);
+
+  if (!page || !limit) {
+    throw new ApiError(400, "Page and limit are required");
+  }
+
+  let matchStage = {
+    isPublished: false,
+  };
+
+  matchStage.owner = new mongoose.Types.ObjectId(userId);
+
+  sortType = sortType.toLowerCase();
+
+  if (!allowedSortTypes.includes(sortType)) {
+    throw new ApiError(
+      400,
+      `Sort type must be one of ${allowedSortTypes.join(", ")}`
+    );
+  }
+
+  let sortOrder = sortType === "asc" ? 1 : -1;
+
+  sortBy = sortBy.toLowerCase();
+
+  if (!allowedSortByFields.includes(sortBy)) {
+    throw new ApiError(
+      400,
+      `Sort by must be one of ${allowedSortByFields.join(", ")}`
+    );
+  }
+
+  if (sortBy === "createdat") {
+    sortBy = "createdAt";
+  }
+
+  const pipeline = [
+    { $match: matchStage },
+
+    {
+      $sort: {
+        [sortBy]: sortOrder,
+      },
+    },
+
+    {
+      $lookup: {
+        from: "users",
+        localField: "owner",
+        foreignField: "_id",
+        as: "owner",
+      },
+    },
+
+    {
+      $unwind: "$owner",
+    },
+
+    {
+      $project: {
+        _id: 1,
+        title: 1,
+        thumbnail: 1,
+        duration: 1,
+        views: 1,
+        isPublished: 1,
+        createdAt: 1,
+        "owner._id": 1,
+        "owner.userName": 1,
+        "owner.avatar": 1,
+      },
+    },
+  ];
+
+  const options = {
+    page: page || 1,
+    limit: limit || 30,
+    sort: { [sortBy]: sortOrder },
+  };
+
+  const aggregate = Video.aggregate(pipeline);
+  const result = await Video.aggregatePaginate(aggregate, options);
+  if (
+    result.totalPages !== 0 &&
+    page > result.totalPages
+  ) {
+    return res
+      .status(400)
+      .json(new ApiResponse(400, null, "Requested page exceeds total pages."));
+  }
+
+  const s3DataKeys = ["videoFile", "thumbnail", "owner.avatar"];
+  const newRes = attachS3Urls(result.docs, s3DataKeys);
+
+  res
+    .status(200)
+    .json(new ApiResponse(200, newRes, "Videos fetched successfully"));
+});
+
 const videoSignedUrl = asyncHandler(async (req, res) => {
   let video;
   try {
@@ -359,6 +472,16 @@ const verifyVideoUpload = asyncHandler(async (req, res) => {
       throw new Error("Empty upload");
     }
 
+    const baseKey = `videos/${videoId}`;
+
+    video.hls = {
+      masterUrl: `${baseKey}/hls/master.m3u8`,
+      resolutions: {
+        "1080p": { videoUrl: `${baseKey}/1080p.mp4` },
+        "720p": { videoUrl: `${baseKey}/720p.mp4` },
+        "360p": { videoUrl: `${baseKey}/360p.mp4` },
+      }
+    }
     video.encodingStatus = "queued";
     await video.save();
 
@@ -383,6 +506,7 @@ const verifyVideoUpload = asyncHandler(async (req, res) => {
 
     return res.status(200).json(new ApiResponse(200, video, "Video upload verified and queued for encoding"));
   } catch (error) {
+    console.log(error);
     return res.status(500).json(new ApiError(500, error.message || "Error verifying video upload"));
   }
 })
@@ -441,7 +565,15 @@ const getVideoById = asyncHandler(async (req, res) => {
     ? true
     : false;
 
-  const s3DataKeys = ["videoFile", "thumbnail", "owner.avatar"];
+  const s3DataKeys = [
+    "videoFile",
+    "thumbnail",
+    "owner.avatar",
+    "hls.masterUrl",
+    "hls.resolutions.1080p.videoUrl",
+    "hls.resolutions.720p.videoUrl",
+    "hls.resolutions.360p.videoUrl",
+  ];
   const videoObj = attachS3Urls(video, s3DataKeys);
 
   return res.status(200).json(
@@ -700,6 +832,7 @@ const progressiveStream = asyncHandler(async (req, res) => {
 
 export {
   getAllPublishedVideos,
+  getAllPrivateVideos,
   deleteVideo,
   getVideoById,
   videoSignedUrl,
